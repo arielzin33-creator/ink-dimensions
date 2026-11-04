@@ -1,0 +1,17 @@
+{
+  "$schema": "https://flagd.dev/schema/v0/flags.json",
+  "flags": {
+    "photo-path-enabled": {
+      "state": "ENABLED",
+      "variants": { "on": true, "off": false },
+      "defaultVariant": "on",
+      "metadata": { "description": "Path (a): projects built from real photos of people. Switch to \"off\" to stop new photo projects, photo uploads, and script generation and rendering for photo projects; reading, export and deletion keep working." }
+    },
+    "render-enabled": {
+      "state": "ENABLED",
+      "variants": { "on": true, "off": false },
+      "defaultVariant": "on",
+      "metadata": { "description": "Panel rendering through the image provider. Switch to \"off\" to stop new render jobs (for example to cap hosted provider costs)." }
+    }
+  }
+}

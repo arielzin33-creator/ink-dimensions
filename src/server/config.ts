@@ -26,6 +26,7 @@ export interface Config {
   storage: { provider: 'local'; dir: string } | { provider: 'memory' };
   webDir: string;
   migrationsDir: string;
+  flagsFile: string;
   devVite: boolean;
   cookieSecure: boolean;
   uploadMaxBytes: number;
@@ -159,6 +160,7 @@ export function loadConfig(env: Env = process.env): Config {
     storage: storageProvider === 'memory' ? { provider: 'memory' } : { provider: 'local', dir: str(env, 'STORAGE_DIR') ?? '.data/storage' },
     webDir: str(env, 'WEB_DIR') ?? 'dist/web',
     migrationsDir: str(env, 'MIGRATIONS_DIR') ?? 'migrations',
+    flagsFile: str(env, 'FLAGS_FILE') ?? 'flags/flags.json',
     devVite: bool(env, 'DEV_VITE', false),
     cookieSecure: bool(env, 'COOKIE_SECURE', production),
     uploadMaxBytes: int(env, 'UPLOAD_MAX_BYTES', 5 * 1024 * 1024, 1024, 20 * 1024 * 1024),
