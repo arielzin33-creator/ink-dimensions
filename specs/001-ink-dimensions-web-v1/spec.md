@@ -217,8 +217,8 @@ Rendering
   succeeded, and a failed panel MUST be renderable again.
 - **FR-021**: The image request for a panel MUST include the style, the panel description and the
   descriptions of the characters present, and MAY include that project's own reference images.
-- **FR-022**: Real photos MUST be sent only to image generators the operator has allowed for
-  photos. [NEEDS CLARIFICATION: may real photos be sent to a third-party hosted image service at all, or only to the self-hosted pipeline? Until decided, photos go only to the self-hosted pipeline.]
+- **FR-022**: Real photos MUST be sent only to the self-hosted pipeline, never to a third-party
+  hosted image service (owner decision, 2026-11-05).
 - **FR-023**: Jobs interrupted by a restart MUST resume rather than stay "running" forever.
 
 Composition, reader and export
@@ -241,15 +241,23 @@ Providers and operations
 - **FR-029**: The operator MUST be able to choose the script provider (hosted Claude, a local
   model server, or the stand-in) and the image provider (a hosted image service, a self-hosted
   pipeline, or the stand-in) by configuration; the stand-ins are the default.
-- **FR-030**: The default hosted image service for production is
-  [NEEDS CLARIFICATION: which hosted image service should be the default for production, and under which terms of use for photos of people?]
+- **FR-030**: The default image service for production is the self-hosted pipeline, on both paths.
+  No third-party service is the default (owner decision, 2026-11-05).
 - **FR-031**: The system MUST expose a liveness check and a readiness check that reports whether
   the database is reachable.
-- **FR-032**: Usage limits per person: a render job MUST NOT exceed 36 panels.
-  [NEEDS CLARIFICATION: pricing and quotas: is v1 free, paid or invite-only, and what per-person limits apply to script generations and rendered panels per day?]
-- **FR-033**: Account eligibility: [NEEDS CLARIFICATION: what is the minimum age for an account, and may photos of minors be uploaded on the real-photo path (for example by a parent)?]
-- **FR-034**: Retention: projects and photos are kept until the owner deletes them.
-  [NEEDS CLARIFICATION: should inactive projects and photos be deleted automatically after a retention period, and if so how long?]
+- **FR-032**: Usage limits per person: a render job MUST NOT exceed 36 panels. V1 is free and
+  invite-only: registration MUST require an invite, and a person MUST NOT exceed 10 script
+  generations and 100 rendered panels per day (owner decision, 2026-11-05). Only the 36-panel cap
+  is built; the rest is tracked in `docs/product/OPEN-ITEMS.md`.
+- **FR-033**: Account eligibility: the minimum age is 18, confirmed at registration. On the
+  real-photo path, a photo of a minor MAY be uploaded only by that minor's parent or legal
+  guardian, confirmed with the upload (owner decision, 2026-11-05; legal advice is required before
+  this reaches anyone but the owner). Not built yet; tracked in `docs/product/OPEN-ITEMS.md`.
+- **FR-034**: Retention: a project with no activity for 90 days MUST have its photos and every
+  image derived from them deleted automatically, after warning its owner at least 14 days before.
+  Scripts and invented characters are kept until the owner deletes them (owner decision,
+  2026-11-05; the 14-day notice is a proposed value). Not built yet; tracked in
+  `docs/product/OPEN-ITEMS.md`.
 - **FR-035**: The system MUST expose operational metrics without sign-in and without personal
   data: the release, uptime, total requests, total server errors, and the numbers of queued,
   running and failed render jobs. Counters start again from zero when the service restarts.
@@ -322,4 +330,4 @@ Providers and operations
 - [x] Every requirement is testable and unambiguous
 - [x] Every user story has acceptance scenarios
 - [x] Success criteria are measurable
-- [ ] No clarification markers remain (5 open: FR-022, FR-030, FR-032, FR-033, FR-034)
+- [x] No clarification markers remain (FR-022, FR-030, FR-032, FR-033, FR-034 decided 2026-11-05)

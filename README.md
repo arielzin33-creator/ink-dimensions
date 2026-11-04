@@ -73,7 +73,7 @@ Only environment variables; every one is optional and documented in [`.env.examp
 | `LLM_TIMEOUT_MS`, `LLM_MAX_TOKENS` | `120000`, `8000` | Script generation limits |
 | `IMAGE_PROVIDER` | `twin` | `twin`, `hosted`, `comfyui` |
 | `HOSTED_IMAGE_URL`, `HOSTED_IMAGE_API_KEY` | – | Generic hosted image API |
-| `HOSTED_IMAGE_ALLOW_PHOTOS` | `false` | Whether real photos may be sent to the hosted API (owner decision pending) |
+| `HOSTED_IMAGE_ALLOW_PHOTOS` | `false` | Whether real photos may be sent to the hosted API. Leave it `false`: the owner decided photos stay self-hosted (FR-022) |
 | `COMFYUI_URL`, `COMFYUI_WORKFLOW_PATH`, `COMFYUI_POLL_MS` | – | Self-hosted ComfyUI-style pipeline |
 | `IMAGE_TIMEOUT_MS` | `180000` | Per-panel image timeout |
 | `MODERATION_PROVIDER` | `rules` | `rules`, or `permissive` (tests only; refused in production) |
@@ -153,7 +153,7 @@ e2e            Playwright specs with axe accessibility scans
 - Deleting a photo deletes it and every rendered panel that shows that character. Deleting a
   character, a project or the account deletes all of its files and rows.
 - Photos are used only for their own project and are never sent to the hosted image provider
-  unless `HOSTED_IMAGE_ALLOW_PHOTOS=true` (an owner decision; see the spec). A ComfyUI server keeps
+  (owner decision, FR-022; `HOSTED_IMAGE_ALLOW_PHOTOS` stays `false`). A ComfyUI server keeps
   any uploaded reference image in its own input folder; cleaning that folder is the operator's job.
 - On the real-photo path the moderation provider refuses sexual, violent-harm and defamatory
   content in plots, character notes, generated scripts, edits and panels before rendering. The
@@ -164,9 +164,10 @@ e2e            Playwright specs with axe accessibility scans
 ## Out of scope for v1
 
 - The local desktop app (future work in the owner's plan; outside the factory's product line).
-- Payments, plans and quotas beyond the 36-panel job cap; public sharing, collaboration.
+- Payments and plans; public sharing, collaboration.
 - Training or fine-tuning on user images; face recognition or identity/consent verification.
 - Interface languages other than English; generated imagery for interface assets (never).
-- Open owner decisions are listed as `[NEEDS CLARIFICATION]` markers in the spec: pricing and
-  quotas, the default hosted image vendor, sending photos to hosted providers, age policy and
-  retention. Until decided, v1 has no default vendor, no age gate and no automatic deletion.
+- Owner decisions made on 2026-11-05 but **not built yet** (`docs/product/OPEN-ITEMS.md`): invites
+  and daily quotas (FR-032), the 18+ and parent-or-guardian confirmations (FR-033) and automatic
+  photo deletion after 90 idle days (FR-034). Until they are built, the running app has only the
+  36-panel job cap, no age gate and no automatic deletion.
