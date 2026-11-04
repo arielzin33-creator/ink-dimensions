@@ -4,6 +4,7 @@ import type { ProjectPath } from '../../shared/schemas.js';
 import type { ProjectDto } from '../../shared/types.js';
 import { api, errorMessage } from '../api.js';
 import { Notice, TextField } from '../components/Field.js';
+import { useFeatures } from '../features.js';
 import { useRouter } from '../router.js';
 
 export function NewProjectPage() {
@@ -12,6 +13,8 @@ export function NewProjectPage() {
   const [path, setPath] = useState<ProjectPath | ''>('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const features = useFeatures();
+  const photoOff = features?.photoPathEnabled === false;
   useEffect(() => {
     document.title = 'New project · Ink Dimensions';
   }, []);
@@ -40,11 +43,25 @@ export function NewProjectPage() {
           <legend>Choose your path</legend>
           <p className="hint">You choose once. The path stays the same for the whole project.</p>
           <label className="choice">
-            <input type="radio" name="path" value="photo" checked={path === 'photo'} onChange={() => setPath('photo')} />
+            <input
+              type="radio"
+              name="path"
+              value="photo"
+              disabled={photoOff}
+              aria-describedby={photoOff ? 'photo-off' : undefined}
+              checked={path === 'photo'}
+              onChange={() => setPath('photo')}
+            />
             <span>
               <strong>Real photos</strong>
               Use photos of real people as the characters. You must have each person&apos;s permission, and some scenes are not allowed for real
               people.
+              {photoOff ? (
+                <em id="photo-off" className="hint">
+                  {' '}
+                  Not available at the moment.
+                </em>
+              ) : null}
             </span>
           </label>
           <label className="choice">
