@@ -115,6 +115,8 @@ export interface HandlerOptions {
   router: Router;
   log: Logger;
   release: string;
+  /** Called once per finished response (metrics). */
+  onResponse?: (status: number) => void;
   /** Called for non-API paths (static UI or the Vite dev middleware). */
   fallback?: (req: IncomingMessage, res: ServerResponse, ctx: { reqId: string }) => Promise<Reply | 'handled'>;
 }
@@ -156,6 +158,7 @@ export function createRequestHandler(opts: HandlerOptions) {
     };
 
     res.on('finish', () => {
+      opts.onResponse?.(res.statusCode);
       const durationMs = Number(process.hrtime.bigint() - started) / 1e6;
       log.info('request', {
         method,
@@ -206,7 +209,7 @@ export function createRequestHandler(opts: HandlerOptions) {
           throw forbidden('Cross-origin request refused.');
         }
       }
-      const isApi = url.pathname.startsWith('/api/') || url.pathname === '/healthz' || url.pathname === '/readyz';
+      const isApi = url.pathname.startsWith('/api/') || url.pathname === '/healthz' || url.pathname === '/readyz' || url.pathname === '/metrics.json';
       if (!isApi && opts.fallback) {
         const r = await opts.fallback(req, res, { reqId });
         if (r !== 'handled') send(r);

@@ -113,6 +113,7 @@ export function createRenderRunner(deps: AppDeps, opts: { autoRun: boolean; poll
         error,
         JSON.stringify(results),
       ]);
+      if (status === 'failed') deps.metrics?.recordJobFailed();
       jlog.info('render job', { status, total: results.length, failed: results.filter((r) => r.status === 'failed').length, durationMs: Date.now() - started });
     };
 
@@ -188,6 +189,7 @@ export function createRenderRunner(deps: AppDeps, opts: { autoRun: boolean; poll
         await runJob(job);
       } catch (err) {
         log.error('render job crashed', { jobId: job.id, ...errorFields(err) });
+        deps.metrics?.recordJobFailed();
         await deps.db.query("UPDATE render_jobs SET status = 'failed', error = 'Internal error.', finished_at = now() WHERE id = $1", [job.id]).catch(() => undefined);
       }
     }

@@ -6,6 +6,7 @@ import type { Config } from './config.js';
 import type { Db } from './db.js';
 import { createRequestHandler, json, Router, type Reply } from './http.js';
 import type { Logger } from './logger.js';
+import { createMetrics, type Metrics } from './metrics.js';
 import { registerCharacterRoutes } from './routes/characters.js';
 import { registerPageRoutes } from './routes/pages.js';
 import { registerProjectRoutes } from './routes/projects.js';
@@ -18,6 +19,8 @@ export interface AppDeps {
   db: Db;
   log: Logger;
   providers: Providers;
+  /** Created by createApp when absent. */
+  metrics?: Metrics;
 }
 
 export type Fallback = (req: IncomingMessage, res: ServerResponse, ctx: { reqId: string }) => Promise<Reply | 'handled'>;
@@ -25,6 +28,7 @@ export type Fallback = (req: IncomingMessage, res: ServerResponse, ctx: { reqId:
 export interface App {
   router: Router;
   runner: RenderRunner;
+  metrics: Metrics;
   handler: (req: IncomingMessage, res: ServerResponse) => void;
   /** Stops background work. */
   stop(): Promise<void>;
@@ -32,6 +36,8 @@ export interface App {
 
 export function createApp(deps: AppDeps, opts: { fallback?: Fallback; autoRun?: boolean } = {}): App {
   const router = new Router();
+  const metrics = deps.metrics ?? createMetrics();
+  deps = { ...deps, metrics };
   const runner = createRenderRunner(deps, { autoRun: opts.autoRun ?? true });
 
   router.get('/healthz', async () => json(200, { status: 'ok', release: deps.config.release }));
@@ -45,6 +51,28 @@ export function createApp(deps: AppDeps, opts: { fallback?: Fallback; autoRun?: 
     }
   });
 
+  // Operational metrics: no auth, no personal data (FR-035).
+  router.get('/metrics.json', async () => {
+    let queued: number | null = null;
+    let running: number | null = null;
+    try {
+      const { rows } = await deps.db.query<{ status: string; n: number }>(
+        "SELECT status, count(*)::int AS n FROM render_jobs WHERE status IN ('queued', 'running') GROUP BY status",
+      );
+      queued = rows.find((r) => r.status === 'queued')?.n ?? 0;
+      running = rows.find((r) => r.status === 'running')?.n ?? 0;
+    } catch {
+      // Database unavailable: report the in-process counters only.
+    }
+    return json(200, {
+      release: deps.config.release,
+      uptime_s: Math.floor((Date.now() - metrics.startedAt) / 1000),
+      requests_total: metrics.requestsTotal,
+      errors_total: metrics.errorsTotal,
+      jobs: { queued, running, failed_total: metrics.jobsFailedTotal },
+    });
+  });
+
   registerAuthRoutes(router, { db: deps.db, storage: deps.providers.storage, cookieSecure: deps.config.cookieSecure });
   registerProjectRoutes(router, deps);
   registerCharacterRoutes(router, deps);
@@ -52,6 +80,6 @@ export function createApp(deps: AppDeps, opts: { fallback?: Fallback; autoRun?: 
   registerRenderRoutes(router, deps, runner);
   registerPageRoutes(router, deps);
 
-  const handler = createRequestHandler({ router, log: deps.log, release: deps.config.release, ...(opts.fallback ? { fallback: opts.fallback } : {}) });
-  return { router, runner, handler, stop: () => runner.stop() };
+  const handler = createRequestHandler({ router, log: deps.log, release: deps.config.release, onResponse: (status) => metrics.recordResponse(status), ...(opts.fallback ? { fallback: opts.fallback } : {}) });
+  return { router, runner, metrics, handler, stop: () => runner.stop() };
 }
