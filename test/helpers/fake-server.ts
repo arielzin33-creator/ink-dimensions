@@ -22,8 +22,10 @@ export async function startFakeServer(handler: FakeHandler) {
     try {
       await current(rec, res);
     } catch (err) {
+      process.stderr.write(`fake server handler failed: ${String(err)}
+`);
       res.statusCode = 500;
-      res.end(String(err));
+      res.end('fake server handler failed');
     }
   });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
