@@ -250,6 +250,14 @@ Providers and operations
 - **FR-033**: Account eligibility: [NEEDS CLARIFICATION: what is the minimum age for an account, and may photos of minors be uploaded on the real-photo path (for example by a parent)?]
 - **FR-034**: Retention: projects and photos are kept until the owner deletes them.
   [NEEDS CLARIFICATION: should inactive projects and photos be deleted automatically after a retention period, and if so how long?]
+- **FR-035**: The system MUST expose operational metrics without sign-in and without personal
+  data: the release, uptime, total requests, total server errors, and the numbers of queued,
+  running and failed render jobs. Counters start again from zero when the service restarts.
+- **FR-036**: The operator MUST be able to switch risky capabilities off without a new
+  release: the real-photo path and panel rendering each have a switch, both on by default. With
+  the real-photo path off, new real-photo projects, photo uploads, and script generation and
+  rendering for real-photo projects are refused with a clear message, while reading, exporting
+  and deleting existing data keeps working. With rendering off, new render jobs are refused.
 
 ## 4. Non-functional requirements
 
@@ -267,6 +275,8 @@ Providers and operations
   id; every error records the release version.
 - **NFR-006**: Security: passwords are stored only as salted slow hashes; session cookies cannot
   be read by scripts or sent on cross-site requests.
+- **NFR-008**: Data changes are append-only and backward compatible (expand, then contract);
+  any destructive change is explicitly marked so release automation can hold it for review.
 - **NFR-007**: Visual design: interface colours, spacing and type come only from the design tokens;
   placeholders are neutral shapes and labels, never generated imagery.
 

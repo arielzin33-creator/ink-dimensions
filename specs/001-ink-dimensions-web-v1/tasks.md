@@ -221,3 +221,33 @@ Marked "untested against the live service".
 
 The README records the open owner decisions (FR-030, FR-033, FR-034) and the v1 behaviour until
 they are made: no default hosted vendor, no age gate, no automatic retention deletion.
+
+## T-033: Expose in-process metrics
+- files: src/server/metrics.ts, src/server/http.ts, src/server/app.ts, src/server/render-runner.ts, test/integration/metrics.test.ts
+- done_when: `GET /metrics.json` returns release, uptime, request and 5xx counts and queued/running/failed job counts, with no personal data, and the test sees the counters move
+- depends_on: T-023
+- requirements: FR-035, NFR-005
+
+## T-034: Add OpenFeature flags with a flagd-file provider
+- files: flags/flags.json, src/providers/flags/flagd-file.ts, src/server/flags.ts, src/server/config.ts, test/unit/flags.test.ts
+- done_when: unit tests show the provider resolves flagd JSON (enabled, disabled, missing flag, type mismatch, file changes picked up without restart) through the OpenFeature client
+- depends_on: T-009
+- requirements: FR-036, US-12
+
+## T-035: Put the real-photo path and rendering behind flags
+- files: src/server/routes/projects.ts, src/server/routes/characters.ts, src/server/routes/script.ts, src/server/routes/render.ts, test/integration/flags.test.ts
+- done_when: with `photo-path-enabled` off, new photo projects, photo uploads, generation and rendering for photo projects are refused (403) while reads, exports and deletes still work; with `render-enabled` off new jobs get 503
+- depends_on: T-034, T-026
+- requirements: FR-036, US-2, US-3, US-7
+
+## T-036: Show disabled features in the UI
+- files: src/web/pages/NewProjectPage.tsx, src/web/features.ts
+- done_when: the new-project page disables the real-photo choice with an explanation when the flag is off
+- depends_on: T-035, T-028
+- requirements: FR-036, US-2
+
+## T-037: Guard migrations and verify db:migrate on PostgreSQL
+- files: test/integration/migrate.test.ts, test/integration/pg.test.ts
+- done_when: a test fails any migration with DROP, RENAME or SET NOT NULL that lacks `-- factory:contract` on its first line, and with `TEST_DATABASE_URL` set the migrations and a smoke flow run on real PostgreSQL through `pg`
+- depends_on: T-018
+- requirements: NFR-008, FR-031
