@@ -22,8 +22,7 @@ export async function startFakeServer(handler: FakeHandler) {
     try {
       await current(rec, res);
     } catch (err) {
-      process.stderr.write(`fake server handler failed: ${String(err)}
-`);
+      process.stderr.write(`fake server handler failed: ${String(err)}\n`);
       res.statusCode = 500;
       res.end('fake server handler failed');
     }
