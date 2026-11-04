@@ -6,6 +6,7 @@ import type { Config } from './config.js';
 import type { Db } from './db.js';
 import { createRequestHandler, json, Router, type Reply } from './http.js';
 import type { Logger } from './logger.js';
+import { registerProjectRoutes } from './routes/projects.js';
 
 export interface AppDeps {
   config: Config;
@@ -38,6 +39,7 @@ export function createApp(deps: AppDeps, opts: { fallback?: Fallback; autoRun?: 
   });
 
   registerAuthRoutes(router, { db: deps.db, storage: deps.providers.storage, cookieSecure: deps.config.cookieSecure });
+  registerProjectRoutes(router, deps);
 
   const handler = createRequestHandler({ router, log: deps.log, release: deps.config.release, ...(opts.fallback ? { fallback: opts.fallback } : {}) });
   return { router, handler, stop: async () => undefined };
