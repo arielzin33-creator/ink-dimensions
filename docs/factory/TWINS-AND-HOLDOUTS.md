@@ -28,12 +28,14 @@ Holdouts are acceptance checks the implementer never sees. A visible test can be
 - They live in a separate private repository, named by the repository variable
   `FACTORY_HOLDOUT_REPO`, with an executable `run.sh` at its root. `run.sh <repo-root>`
   exits 0 when every scenario passes.
-- The gates job mints a read-only installation token for that repository from a dedicated
-  GitHub App. The App ID is in the variable `FACTORY_HOLDOUT_APP_ID`; its private key is in the
-  secret `FACTORY_HOLDOUT_APP_KEY`, which is the only secret the factory allows besides
-  `GITHUB_TOKEN`, and only in that one step.
-- The checkout is moved to `$RUNNER_TEMP/holdouts`, read-only to code under test, and run
-  through `gates.sh` as the `holdout` gate inside the sandbox.
+- A separate `holdouts` job, which runs no agent or candidate code, mints a read-only
+  installation token for that repository from a dedicated GitHub App.
+  - The App ID is in the variable `FACTORY_HOLDOUT_APP_ID`.
+  - Its private key is in the secret `FACTORY_HOLDOUT_APP_KEY`, allowed only in that job's
+    token step (`policy.json` lists every allowed secret).
+- The job checks the scenarios out and passes them to the gates job as an artifact.
+- In the gates job they sit in `$RUNNER_TEMP/holdouts`, which code under test can read but not
+  write. They run through `gates.sh` as the `holdout` gate inside the sandbox.
 - When the variable is unset, the holdout gate is skipped. It is optional and is not in the
   required gate list.
 

@@ -13,7 +13,9 @@ evals/tasks/<id>/task.json        id, title, partition (dev | private | heldout)
                                   optional: pass_to_pass, setup_patch, prepare, canary, check_timeout, base
 evals/tasks/<id>/reference.patch  a solution that passes every grader
 evals/tasks/<id>/setup.patch      optional: turns the base into the task's starting state
-evals/tasks/<id>/hidden/          optional: tests copied in after the agent runs (it never sees them)
+evals/tasks/<id>/hidden/          optional: tests copied in after the agent runs (the task worktree
+                                  contains no evals/ directory, and the Claude agent wrapper puts
+                                  the suite on its sandbox deny-read list)
 ```
 
 Sourcing rules:
@@ -31,7 +33,7 @@ python3 -I .factory/scripts/evals.py validate                       # reference 
 python3 -I .factory/scripts/evals.py run --agent "cmd:bash $PWD/.factory/evals/claude-agent.sh" \
   --trials 5 --partition dev --model claude-sonnet-5-5 --reasoning default \
   --harness "claude-code 2.1.318 / action c0949c5" --prompt-version "$(git rev-parse --short HEAD)" \
-  --cost-cap 6 --turn-cap 40 --model-release 2026-06-09 --sandbox --out evals/results/$(date +%F)-sonnet.json
+  --cost-cap 6 --turn-cap 40 --model-release 2026-06-09 --sandbox-grade --out evals/results/$(date +%F)-sonnet.json
 python3 -I .factory/scripts/evals.py report evals/results/*.json --md report.md --svg pareto.svg
 ```
 
@@ -73,3 +75,12 @@ Never use judge scores to select among candidates or as a reward.
 ## Mutation testing on changed lines (rung 4)
 
 `python3 -I .factory/scripts/observe.py changed-lines --base <sha>` prints `stryker_mutate` entries such as `src/a.ts:10-24`. A product's `mutation` script can pass them to Stryker (`--mutate`). The `deep` gate level runs `mutation` when the script exists; it is required for Tier 3 changes, which humans make.
+
+## Isolation notes
+
+- The agent works in a worktree with no `evals/` directory and no pointer to the main checkout.
+- The Claude agent wrapper denies reads of the suite in its sandbox settings.
+- A command agent running without any sandbox could still read files anywhere on the machine. For
+  held-out tasks, run the suite from a separate checkout the agent account cannot read.
+- Graders execute agent-written code. They always run without credential variables;
+  `--sandbox-grade` also confines them to the worktree with no network.

@@ -101,7 +101,7 @@ def run_case(c: dict, policy: dict) -> tuple[bool, str]:
         root = Path(tempfile.mkdtemp(prefix="redteam-lock-"))
         try:
             lock = copy.deepcopy(LOCK)
-            lock["packages"]["node_modules/bad"] = dict(lock["packages"]["node_modules/ok"], **c["entry"])
+            lock["packages"][c.get("path", "node_modules/bad")] = dict(lock["packages"]["node_modules/ok"], **c["entry"])
             (root / "package-lock.json").write_text(json.dumps(lock))
             (root / "package.json").write_text(json.dumps({"name": "rt", "version": "1.0.0"}))
             result = E.lockfile_check(root, policy)

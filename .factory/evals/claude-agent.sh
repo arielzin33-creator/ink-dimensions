@@ -9,6 +9,20 @@ MODEL="${EVAL_MODEL:-claude-sonnet-5-5}"
 TURNS="${EVAL_MAX_TURNS:-40}"
 BUDGET="${EVAL_MAX_BUDGET_USD:-6}"
 SETTINGS="${EVAL_SETTINGS:-.factory/worker-settings.json}"
+# Keep the eval suite out of the agent's reach: add it to the sandbox's denyRead list and make
+# every sandbox path absolute (render-settings).
+RENDERED="$(mktemp)"; trap 'rm -f "$RENDERED"' EXIT
+python3 -I - "$SETTINGS" "$RENDERED" "${EVAL_DENY_READ:-}" <<'PY'
+import json, sys
+s = json.load(open(sys.argv[1]))
+if sys.argv[3]:
+    fs = s.setdefault("sandbox", {}).setdefault("filesystem", {})
+    fs["denyRead"] = list(fs.get("denyRead", [])) + [sys.argv[3]]
+    s.setdefault("permissions", {}).setdefault("deny", []).append(f"Read(/{sys.argv[3]}/**)")
+json.dump(s, open(sys.argv[2], "w"))
+PY
+python3 -I .factory/scripts/factory.py render-settings --in "$RENDERED" --out "$RENDERED" --root "$PWD" >/dev/null
+SETTINGS="$RENDERED"
 set +e
 claude -p "$(cat "$EVAL_PROMPT_FILE")" --model "$MODEL" --settings "$SETTINGS" \
   --max-turns "$TURNS" --max-budget-usd "$BUDGET" --permission-mode dontAsk \

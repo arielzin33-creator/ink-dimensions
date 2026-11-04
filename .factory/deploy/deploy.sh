@@ -17,8 +17,10 @@ ENV_NAME="${1:?environment}"; IMAGE="${2:?image@digest}"; shift 2
 PR=""
 while [ $# -gt 0 ]; do case "$1" in --pr) PR="${2:?}"; shift 2 ;; *) echo "unknown arg $1" >&2; exit 2 ;; esac; done
 case "$ENV_NAME" in preview|staging|production) ;; *) echo "environment must be preview, staging or production" >&2; exit 2 ;; esac
-case "$IMAGE" in *@sha256:[0-9a-f]*) ;; *) echo "refusing to deploy $IMAGE: not pinned by digest" >&2
-  echo "FACTORY_DEPLOY: env=$ENV_NAME provider=${DEPLOY_PROVIDER:-none} image=$IMAGE url= status=FAILED"; exit 2 ;; esac
+if ! [[ "$IMAGE" =~ ^[a-z0-9][a-z0-9._/-]*@sha256:[0-9a-f]{64}$ ]]; then
+  echo "refusing to deploy $IMAGE: not a strict digest reference (registry/name@sha256:<64 hex>)" >&2
+  echo "FACTORY_DEPLOY: env=$ENV_NAME provider=${DEPLOY_PROVIDER:-none} image=rejected url= status=FAILED"; exit 2
+fi
 PROVIDER="${DEPLOY_PROVIDER:-none}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ADAPTER="$HERE/adapters/$PROVIDER.sh"

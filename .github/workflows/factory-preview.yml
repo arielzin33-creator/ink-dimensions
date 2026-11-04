@@ -2,12 +2,14 @@
 # Same-repository PRs only (fork PRs never receive the preview environment's secrets). The
 # image build runs the PR's code inside Docker; the deploy job gets only the image digest.
 # Previews are torn down by the provider's own expiry (see MANUAL-CONNECTIONS.md).
+# Factory branches (claude/*) carry unreviewed agent code: they get a preview only after a human
+# adds the label factory:preview. Preview images are attested and verified like releases.
 
 name: factory-preview
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
 
 permissions: {}
 
@@ -17,12 +19,18 @@ concurrency:
 
 jobs:
   build:
-    if: github.event.pull_request.head.repo.full_name == github.repository && vars.DEPLOY_PROVIDER != '' && vars.DEPLOY_PROVIDER != 'none'
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      vars.DEPLOY_PROVIDER != '' && vars.DEPLOY_PROVIDER != 'none' &&
+      (!startsWith(github.event.pull_request.head.ref, 'claude/') ||
+       contains(github.event.pull_request.labels.*.name, 'factory:preview'))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
       packages: write
+      id-token: write               # keyless signing of the preview image's provenance
+      attestations: write
     outputs:
       image: ${{ steps.meta.outputs.image }}
       digest: ${{ steps.build.outputs.digest }}
@@ -46,6 +54,11 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.image }}:pr-${{ github.event.pull_request.number }}
           build-args: RELEASE=pr-${{ github.event.pull_request.number }}
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.meta.outputs.image }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
 
   deploy:
     needs: build
@@ -56,6 +69,7 @@ jobs:
     permissions:
       contents: read
       packages: read
+      attestations: read
       pull-requests: write
     env:
       IMAGE: ${{ needs.build.outputs.image }}@${{ needs.build.outputs.digest }}
@@ -66,7 +80,17 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false              # base-branch scripts; the PR's code is only in the image
+          ref: ${{ github.event.pull_request.base.sha }}   # base-branch scripts; the PR's code is only in the image
+          persist-credentials: false
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Admission - verify the preview image's provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .factory/deploy/admit.sh "$IMAGE" factory-preview.yml
       - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
         if: vars.DEPLOY_PROVIDER == 'fly'
       - name: Deploy preview
@@ -78,6 +102,7 @@ jobs:
           DEPLOY_SSH_KNOWN_HOSTS: ${{ vars.DEPLOY_SSH_KNOWN_HOSTS }}
           RELEASE: pr-${{ github.event.pull_request.number }}
         run: |
+          set -o pipefail
           bash .factory/deploy/deploy.sh preview "$IMAGE" --pr "$PR" | tee "$RUNNER_TEMP/deploy.log"
           url="$(sed -n 's/^FACTORY_DEPLOY: .* url=\([^ ]*\) status=.*/\1/p' "$RUNNER_TEMP/deploy.log" | tail -1)"
           echo "url=$url" >> "$GITHUB_OUTPUT"

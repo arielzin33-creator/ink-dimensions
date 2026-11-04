@@ -262,12 +262,25 @@ def cmd_spec_check(args) -> int:
     return emit(out, 0 if out["ok"] else 1)
 
 
+def spec_errors(folder: Path) -> list[str]:
+    """Every error the tasks gate would report (approvers, dates, gate order, clarifications)."""
+    spec, plan, tasks_doc = (read_doc(folder / f"{n}.md") for n in ("spec", "plan", "tasks"))
+    if spec is None or plan is None or tasks_doc is None:
+        return ["spec, plan or tasks missing"]
+    errs, _, info = check_spec(*spec)
+    e2, _ = check_plan(plan[0], plan[1], spec[0])
+    e3, _, _ = check_tasks(tasks_doc[0], tasks_doc[1], plan[0], set(info["requirements"]))
+    return errs + e2 + e3
+
+
 def spec_status(folder: Path) -> dict:
     status = {}
     for name in ("spec", "plan", "tasks"):
         doc = read_doc(folder / f"{name}.md")
         status[name] = (doc[0].get("status") if doc else None) or "missing"
-    status["implementable"] = all(status[n] == "approved" for n in ("spec", "plan", "tasks"))
+    errors = spec_errors(folder)
+    status["errors"] = errors
+    status["implementable"] = all(status[n] == "approved" for n in ("spec", "plan", "tasks")) and not errors
     return status
 
 

@@ -38,6 +38,7 @@ factory:freeze|B60205|Error budget exhausted: release and factory freeze (P0 onl
 factory:brief|FEF2C0|PR/FAQ brief under review (Phase E gate 1)
 factory:incident|D93F0B|Production signal turned into an issue (Phase D)
 factory:retro|C5DEF5|Weekly factory retrospective
+factory:preview|BFDADC|A human allows a preview deployment of a factory PR
 LABELS
 
 echo "== Ruleset on $DEFAULT_BRANCH"
@@ -75,14 +76,20 @@ OWNER_LOGIN="${OWNER_LOGIN:-$(gh api user --jq .login)}"
 OWNER_ID="$(gh api "users/$OWNER_LOGIN" --jq .id)"
 for envname in preview staging production; do
   if [ "$envname" = production ]; then
-    # A human approves every production deployment; the deploying identity cannot self-approve.
-    body="{\"wait_timer\":0,\"prevent_self_review\":false,\"reviewers\":[{\"type\":\"User\",\"id\":$OWNER_ID}],\"deployment_branch_policy\":{\"protected_branches\":true,\"custom_branch_policies\":false}}"
+    # A human (the owner) approves every production deployment. prevent_self_review stays false
+    # because a solo owner both merges and approves; with a second operator, set it to true.
+    body="{\"wait_timer\":0,\"prevent_self_review\":false,\"reviewers\":[{\"type\":\"User\",\"id\":$OWNER_ID}],\"deployment_branch_policy\":{\"protected_branches\":false,\"custom_branch_policies\":true}}"
   elif [ "$envname" = staging ]; then
-    body='{"deployment_branch_policy":{"protected_branches":true,"custom_branch_policies":false}}'
+    body='{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}'
   else
     body='{}'
   fi
   printf '%s' "$body" | gh api -X PUT "repos/$REPO/environments/$envname" --input - >/dev/null && echo "   $envname"
+  # Only the default branch may deploy to staging and production (explicit policy; rulesets
+  # may not count as "protected branches" for environments).
+  if [ "$envname" != preview ]; then
+    gh api -X POST "repos/$REPO/environments/$envname/deployment-branch-policies" -f name="$DEFAULT_BRANCH" -f type=branch >/dev/null 2>&1 || true
+  fi
 done
 echo "   Add environment secrets yourself (DEPLOY_TOKEN or DEPLOY_SSH_KEY) for the provider you choose."
 

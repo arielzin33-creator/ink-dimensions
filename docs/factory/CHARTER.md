@@ -192,7 +192,7 @@ NEXT_REVIEW: <YYYY-MM-DD>
 | Question | Answer in this factory |
 |---|---|
 | What does done look like? | Section 5 (`DONE`): green gates at the required level, the failing-test proof, the diff policy, no keys in the diff, and a reviewable PR body. |
-| Can the agent check its own work? | Yes, but its word is not accepted. `gates.sh` runs in the Stop hook while it works. The authoritative verdict comes from a separate job with no secrets, sandboxed, using the trusted engine. |
+| Can the agent check its own work? | Yes, but its word is not accepted. `gates.sh` runs in the Stop hook while it works. The authoritative verdict comes from a separate job, sandboxed, using the trusted engine. That job holds no secrets: optional holdouts arrive as an artifact from a job that runs no candidate code. |
 | What may it touch? | Tier 0–1 paths; Tier 2 only with an approved spec. Never load-bearing paths (section 2) or existing tests (section 3). Enforced by the guard hook, the sandbox and the diff policy. |
 | What stops it? | The STOP_IF conditions in section 7, the per-run and daily budgets in section 8, the wall-clock timeout, and the pause switch (`FACTORY_PAUSED`). |
 | Who signs off on what cannot be taken back? | The owner merges every pull request. Production deployments wait for the owner's approval on the `production` environment. Migrations, authentication, payments and CI changes are made by humans only. |

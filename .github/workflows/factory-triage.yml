@@ -44,18 +44,21 @@ jobs:
           ONE: ${{ github.event.issue.number || inputs.issue }}
         run: |
           if [ -n "$ONE" ]; then
-            gh api "repos/$REPO/issues/$ONE" --jq '[{number: .number, assoc: .author_association, labels: [.labels[].name]}]' > issues.json
+            gh api "repos/$REPO/issues/$ONE" --jq '[{number: .number, assoc: .author_association, login: .user.login, labels: [.labels[].name]}]' > issues.json
           else
             gh api "repos/$REPO/issues?state=open&labels=factory:inbox&per_page=20" \
-              --jq '[.[] | select(.pull_request == null) | {number: .number, assoc: .author_association, labels: [.labels[].name]}]' > issues.json
+              --jq '[.[] | select(.pull_request == null) | {number: .number, assoc: .author_association, login: .user.login, labels: [.labels[].name]}]' > issues.json
           fi
           python3 -I - <<'EOF'
           import json, os
           issues = json.load(open("issues.json"))
-          trusted = [i["number"] for i in issues
-                     if i["assoc"] in ("OWNER", "MEMBER", "COLLABORATOR") and "factory:inbox" in i["labels"]][:5]
-          external = [i["number"] for i in issues
-                      if i["assoc"] not in ("OWNER", "MEMBER", "COLLABORATOR") and "factory:inbox" in i["labels"]]
+          # Issues opened by the factory's own incident intake (github-actions[bot], sanitised
+          # alert text, label factory:incident) are triaged like a member's issue.
+          def ok(i):
+              return i["assoc"] in ("OWNER", "MEMBER", "COLLABORATOR") or (
+                  i.get("login") == "github-actions[bot]" and "factory:incident" in i["labels"])
+          trusted = [i["number"] for i in issues if ok(i) and "factory:inbox" in i["labels"]][:5]
+          external = [i["number"] for i in issues if not ok(i) and "factory:inbox" in i["labels"]]
           json.dump(external, open("external.json", "w"))
           with open(os.environ["GITHUB_OUTPUT"], "a") as fh:
               fh.write("matrix=" + json.dumps({"issue": trusted}) + "\n")

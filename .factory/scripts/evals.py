@@ -18,7 +18,10 @@ Commands
 Agents: `noop`, `reference` (self-tests), or `cmd:<shell command>`. A command agent runs in the
 task worktree with EVAL_PROMPT_FILE, EVAL_TASK_DIR and EVAL_RESULT_FILE set, and may write
 {"status": "done"|"escalate", "cost_usd": float, "turns": int} to EVAL_RESULT_FILE. Use
-`--sandbox` to run it through sandbox-exec.sh (no network, read-only outside the worktree).
+`--sandbox` to run it through sandbox-exec.sh (no network, read-only outside the worktree): only
+for agents that need no network. A Claude Code agent needs the API, so it relies on Claude Code's
+own sandbox (worker settings) instead. Graders always run without credentials in the environment;
+`--sandbox-grade` also runs them in sandbox-exec.sh.
 
 Metrics: pass@1 with standard error, pass^k (all k trials succeed; the metric for unattended
 work), pass@k (never reported as pass@1), cost per correct fix, canary cheating rate.
@@ -52,7 +55,8 @@ def emit(obj, code=0):
 
 def sh(cmd, cwd, env=None, timeout=900, input_text=None):
     env = dict(env or os.environ)
-    env.setdefault("EVAL_REPO_ROOT", REPO_ROOT)
+    if "EVAL_REPO_ROOT" not in env:          # prepare/check commands only; agents get ""
+        env["EVAL_REPO_ROOT"] = REPO_ROOT
     try:
         res = subprocess.run(cmd, cwd=str(cwd), env=env, capture_output=True, text=True,
                              timeout=timeout, input=input_text, shell=isinstance(cmd, str))
@@ -107,6 +111,8 @@ class Worktree:
     def __enter__(self):
         shutil.rmtree(self.path)
         git(self.repo, "worktree", "add", "--detach", "--quiet", str(self.path), self.task.get("base", "HEAD"))
+        # The suite itself (hidden tests, reference solutions) must not be visible to the agent.
+        shutil.rmtree(self.path / "evals", ignore_errors=True)
         setup = self.task["_dir"] / self.task.get("setup_patch", "setup.patch")
         if setup.is_file():
             git(self.path, "apply", "--whitespace=nowarn", str(setup))
@@ -121,6 +127,17 @@ class Worktree:
         shutil.rmtree(self.path, ignore_errors=True)
 
 
+SECRET_ENV_PREFIXES = ("ANTHROPIC_", "CLAUDE_", "GITHUB_", "GH_", "ACTIONS_", "AWS_", "GOOGLE_", "AZURE_", "OPENAI_")
+
+
+def grading_env() -> dict:
+    """Graders run agent-written code: never with credentials in the environment."""
+    return {k: v for k, v in os.environ.items() if not k.startswith(SECRET_ENV_PREFIXES)}
+
+
+GRADE_SANDBOX = False
+
+
 def grade(task: dict, wt: Path) -> dict:
     """Code-based graders: hidden files are copied in after the agent, then fail-to-pass and
     (optionally) pass-to-pass commands run. Grade outcomes, not paths (VER-10)."""
@@ -132,10 +149,18 @@ def grade(task: dict, wt: Path) -> dict:
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(src, dst)
     timeout = task.get("check_timeout", 900)
-    code, out, err = sh(task["check"], wt, timeout=timeout)
+    env = grading_env()
+
+    def wrap(cmd):
+        if not GRADE_SANDBOX:
+            return cmd
+        return ["bash", str(HERE / "sandbox-exec.sh"), str(wt), "--", "bash", "-c", cmd]
+    code, out, err = sh(wrap(task["check"]), wt, env=env, timeout=timeout)
+    if GRADE_SANDBOX and code == 125:
+        raise RuntimeError("--sandbox-grade requested but bubblewrap is unavailable")
     result = {"fail_to_pass": code == 0, "check_exit": code}
     if task.get("pass_to_pass"):
-        code2, _, _ = sh(task["pass_to_pass"], wt, timeout=timeout)
+        code2, _, _ = sh(wrap(task["pass_to_pass"]), wt, env=env, timeout=timeout)
         result["pass_to_pass"] = code2 == 0
     result["passed"] = result["fail_to_pass"] and result.get("pass_to_pass", True)
     return result
@@ -161,8 +186,11 @@ def run_agent(agent: str, task: dict, wt: Path, timeout: int, sandbox: bool) -> 
         raise SystemExit(emit({"error": f"unknown agent {agent!r}"}, 2))
     tmp = Path(tempfile.mkdtemp(prefix="eval-io-"))
     (tmp / "prompt.md").write_text(prompt_for(task), encoding="utf-8")
-    env = dict(os.environ, EVAL_PROMPT_FILE=str(tmp / "prompt.md"), EVAL_TASK_DIR=str(wt),
-               EVAL_RESULT_FILE=str(tmp / "result.json"))
+    env = {k: v for k, v in os.environ.items() if k != "EVAL_REPO_ROOT"}
+    env.update(EVAL_PROMPT_FILE=str(tmp / "prompt.md"), EVAL_TASK_DIR=str(wt),
+               EVAL_RESULT_FILE=str(tmp / "result.json"), EVAL_REPO_ROOT="",
+               # The suite (hidden tests, reference patches) lives here; agents must not read it.
+               EVAL_DENY_READ=str(task["_dir"].parent.resolve()))
     cmd = agent[4:]
     if sandbox:
         env["SANDBOX_KEEP_ENV"] = "EVAL_PROMPT_FILE EVAL_TASK_DIR EVAL_RESULT_FILE"
@@ -210,6 +238,8 @@ def cmd_validate(args) -> int:
 
 
 def cmd_run(args) -> int:
+    global GRADE_SANDBOX
+    GRADE_SANDBOX = bool(args.sandbox_grade)
     repo, tasks_dir = repo_and_tasks(args)
     tasks = load_tasks(tasks_dir, args.partition)
     trials = []
@@ -359,7 +389,10 @@ def main(argv=None) -> int:
     s.add_argument("--partition", choices=PARTITIONS)
     s.add_argument("--out", required=True)
     s.add_argument("--timeout", type=int, default=2700)
-    s.add_argument("--sandbox", action="store_true")
+    s.add_argument("--sandbox", action="store_true",
+                   help="run the agent in sandbox-exec.sh (no network: only for agents that need none)")
+    s.add_argument("--sandbox-grade", action="store_true",
+                   help="run graders in sandbox-exec.sh (recommended; graders execute agent-written code)")
     s.add_argument("--model")
     s.add_argument("--reasoning")
     s.add_argument("--harness")

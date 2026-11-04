@@ -42,7 +42,7 @@ case "$BASE_STATE" in
 esac
 
 if [ -n "$ISSUE" ]; then
-  gh issue view "$ISSUE" -R "$REPO" --json number,title,body,labels,createdAt,updatedAt > "$OUT/issue.json"
+  gh issue view "$ISSUE" -R "$REPO" --json number,title,body,labels,createdAt,updatedAt,author > "$OUT/issue.json"
   gh api --paginate "repos/$REPO/issues/$ISSUE/comments" > "$OUT/comments.json"
   $PY parse-handoff --comments-json "$OUT/comments.json" > "$OUT/handoff.json"
   # When did the item enter factory:in-progress (for staleness)?
@@ -61,14 +61,29 @@ $PY spend-today --ledger-dir "$LEDGER_DIR" ${ISSUE:+--issue "$ISSUE"} > "$OUT/sp
 SPEC="$(python3 -I -c 'import json,sys
 h=json.load(open(sys.argv[1])).get("handoff") or {}
 print(h.get("spec",""))' "$OUT/handoff.json")"
-if [[ "$SPEC" =~ ^specs/[0-9]{3}-[a-z0-9-]+$ ]] && [ -d "$ROOT/$SPEC" ]; then
+# The approval is bound to the issue: only an issue the backlog workflow created from that same
+# spec (author github-actions[bot], label factory:from-spec, matching task marker) qualifies.
+BOUND="$(python3 -I - "$OUT/issue.json" "$SPEC" "$ROOT/.factory/policy.json" <<'PY'
+import json, re, sys
+issue = json.load(open(sys.argv[1])); spec = sys.argv[2]
+trusted = set(json.load(open(sys.argv[3])).get("trusted_handoff_authors", []))
+login = (issue.get("author") or {}).get("login", "")
+name = login[4:] if login.startswith("app/") else login      # gh shows apps as "app/<slug>"
+bot = login in trusted or f"{name}[bot]" in trusted
+labels = {l.get("name") for l in issue.get("labels", [])}
+m = re.search(r"<!-- factory-task: (specs/[0-9]{3}-[a-z0-9-]+)#T-\d{3} -->", issue.get("body") or "")
+print("true" if bot and "factory:from-spec" in labels and m and m.group(1) == spec else "false")
+PY
+)"
+if [ "$BOUND" = "true" ] && [[ "$SPEC" =~ ^specs/[0-9]{3}-[a-z0-9-]+$ ]] && [ -d "$ROOT/$SPEC" ]; then
   python3 -I "$ROOT/.factory/scripts/intake.py" spec-status "$ROOT/$SPEC" > "$OUT/spec-status.json"
 else
-  echo '{"implementable": false}' > "$OUT/spec-status.json"
+  echo '{"implementable": false, "reason": "issue not generated from this spec by the backlog workflow"}' > "$OUT/spec-status.json"
 fi
 
 # Release freeze (Phase D SLO policy): an open issue labelled factory:freeze stops the factory.
-FREEZE="$(gh issue list -R "$REPO" --state open --label factory:freeze --json number --jq 'length' 2>/dev/null || echo 0)"
+# Fail closed: if the freeze state cannot be read, behave as if frozen.
+FREEZE="$(gh issue list -R "$REPO" --state open --label factory:freeze --json number --jq 'length' 2>/dev/null || echo 1)"
 
 OUT="$OUT" AWAITING="$AWAITING" BASE_GATES="$BASE_GATES" ISSUE="$ISSUE" FREEZE="${FREEZE:-0}" \
 PAUSED="${FACTORY_PAUSED:-false}" python3 -I - <<'EOF'

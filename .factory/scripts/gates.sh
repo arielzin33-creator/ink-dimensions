@@ -85,8 +85,10 @@ c_green() { printf '\033[32m%s\033[0m\n' "$1"; }
 c_dim()   { printf '\033[2m%s\033[0m\n' "$1"; }
 
 # run <name> <command...>  - runs a gate, records the verdict, never exits early.
+RAN=" "
 run() {
   local name="$1"; shift
+  RAN="$RAN$name "
   printf '\n=== gate: %s ===\n' "$name"
   if "$@"; then
     c_green "PASS  $name"
@@ -99,6 +101,7 @@ run() {
 }
 
 skip() {
+  RAN="$RAN$1 "
   c_dim "SKIP  $1 ($2)"
   SKIPPED="${SKIPPED}${SKIPPED:+,}$1"
   case " $REQUIRED " in
@@ -245,6 +248,7 @@ if [ "$LEVEL" = "deep" ]; then
   # Architecture rules: plain grep assertions are enough to start and are
   # impossible for an agent to argue with. Add your own below.
   printf '\n=== gate: architecture ===\n'
+  RAN="${RAN}architecture "
   ARCH_FAIL=0
   # Example rule: nothing outside src/db may import the raw database client.
   # if grep -rn "from '.*db/client'" src --include='*.ts' | grep -v '^src/db/'; then
@@ -260,6 +264,12 @@ fi
 # ---------------------------------------------------------------------------
 # VERDICT
 # ---------------------------------------------------------------------------
+# A required gate that neither ran nor was skipped (for example `holdout` without a holdout
+# directory, or `deps` on a non-node stack) is a misconfiguration, never a silent pass.
+for gate in $REQUIRED; do
+  case "$RAN" in *" $gate "*) ;; *) MISCONFIGURED="${MISCONFIGURED}${MISCONFIGURED:+,}$gate" ;; esac
+done
+
 STATUS="GREEN"
 EXIT_STATUS=0
 if [ -n "$MISCONFIGURED" ]; then

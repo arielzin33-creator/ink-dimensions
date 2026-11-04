@@ -24,11 +24,15 @@ hourly → factory-slo             error budget → factory:freeze issue when ex
 | `none` (default) | dry run, records what would deploy | nothing |
 | `fly` | `flyctl deploy --image`, rolling strategy | `DEPLOY_TOKEN` (Fly deploy token), `DEPLOY_APP_<ENV>` |
 | `render` | image-backed service deploy hook | `DEPLOY_TOKEN` (deploy hook URL) |
-| `ssh` | one Docker VM: pull, run new, swap | `DEPLOY_SSH_KEY`, `DEPLOY_SSH_TARGET_<ENV>`, `DEPLOY_SSH_KNOWN_HOSTS` |
+| `ssh` | one Docker VM: pull, run new, swap | `DEPLOY_SSH_KEY`, `DEPLOY_SSH_TARGET_<ENV>`, `DEPLOY_SSH_KNOWN_HOSTS`. A reverse proxy routes to the container. Previews would need one env file per PR, so use ssh for staging and production only. |
 
 All real adapters are **untested against the live services**. Each is small enough to read in one sitting. A new provider is one more adapter script with the same contract: deploy the digest, exit 0 on success.
 
-Images are deployed only by digest, and only after `gh attestation verify` passes. This is the admission rule, spec §6.5 rule 7.
+Images are deployed only by a strict digest reference, and only after `.factory/deploy/admit.sh` passes. This is the admission rule, spec §6.5 rule 7. `admit.sh` runs `gh attestation verify` with the expected signer workflow, and for releases with source ref `refs/heads/main`. It covers staging, production, rollback and previews.
+
+I believe `--signer-workflow` and `--source-ref` are current `gh attestation verify` flags. If your `gh` version rejects them, admission fails closed; update `admit.sh`.
+
+Previews of factory branches (`claude/*`) run only after a human adds the label `factory:preview`.
 
 ## Rollout, abort and rollback
 

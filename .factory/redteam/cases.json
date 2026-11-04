@@ -436,6 +436,38 @@
         "integrity": ""
       },
       "expect": "integrity"
+    },
+    {
+      "id": "RT-063",
+      "channel": "dependency",
+      "kind": "lockfile",
+      "ref": "linked local package posing as @playwright/test (review 2026-11-04)",
+      "entry": {
+        "link": true,
+        "resolved": "pkgs/pw"
+      },
+      "path": "node_modules/@playwright/test",
+      "expect": "linked, workspace or local package"
+    },
+    {
+      "id": "RT-064",
+      "channel": "dependency",
+      "kind": "lockfile",
+      "ref": "npm alias: name points at another package",
+      "entry": {
+        "name": "evil-pkg"
+      },
+      "path": "node_modules/playwright",
+      "expect": "npm alias"
+    },
+    {
+      "id": "RT-065",
+      "channel": "dependency",
+      "kind": "lockfile",
+      "ref": "workspace/local package outside node_modules",
+      "entry": {},
+      "path": "pkgs/local",
+      "expect": "linked, workspace or local package"
     }
   ]
 }

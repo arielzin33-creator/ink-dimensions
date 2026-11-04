@@ -345,6 +345,13 @@ def check_diff(root: Path, base: str, policy: dict, requested_tier: int | None =
     if secrets:
         stop.append("SECRET_IN_DIFF")
         result["secret_findings"] = secrets
+    # Supply chain before anything is installed: a changed lockfile must satisfy the dependency
+    # policy here, because the gates job runs `npm ci` from it (review finding 2026-11-04).
+    if (root / "package-lock.json").is_file() and any(f["path"] in ("package-lock.json", "package.json") for f in files):
+        lock = lockfile_check(root, policy)
+        if not lock["ok"]:
+            stop.append("LOCKFILE_POLICY")
+            result["lockfile_violations"] = lock["violations"]
     result["stop_reasons"] = sorted(set(stop))
     result["ok"] = not result["stop_reasons"]
     result["package_json"] = pkg
@@ -810,9 +817,16 @@ def lockfile_check(root: Path, policy: dict) -> dict:
     if pkg and lock.get("name") not in (None, pkg.get("name")):
         violations.append("package-lock.json name does not match package.json")
     for path, entry in (lock.get("packages") or {}).items():
-        if path == "" or entry.get("link") or not path.startswith("node_modules/") and "/node_modules/" not in path:
+        if path == "":
+            continue
+        if entry.get("link") or not (path.startswith("node_modules/") or "/node_modules/" in path):
+            # Linked, workspace or local packages run repository code under a package's name
+            # (for example a fake node_modules/.bin/playwright). Never allowed in 0.x.
+            violations.append(f"{path}: linked, workspace or local package (only registry packages are allowed)")
             continue
         name = path.rsplit("node_modules/", 1)[-1]
+        if entry.get("name") and entry["name"] != name:
+            violations.append(f"{name}: npm alias for {entry['name']!r} (aliases are not allowed)")
         resolved = entry.get("resolved", "")
         if not resolved.startswith(registries):
             violations.append(f"{name}: resolved from {resolved or '(nothing)'} (not an allowed registry)")

@@ -194,10 +194,10 @@
   "allowed_workflow_secrets": {
     "_comment": "The only secrets workflows may reference besides GITHUB_TOKEN. Each is optional, bound to named jobs, and never present in an agent job or the sandbox. Deploy secrets live in GitHub Environments (production with required reviewers).",
     "FACTORY_HOLDOUT_APP_KEY": {
-      "purpose": "GitHub App private key for optional holdout scenarios; mints a read-only token in one step",
+      "purpose": "GitHub App private key for optional holdout scenarios; mints a read-only token in the holdouts job, which runs no agent or candidate code",
       "jobs": {
         "factory-implement.yml": [
-          "gates"
+          "holdouts"
         ]
       },
       "steps": [

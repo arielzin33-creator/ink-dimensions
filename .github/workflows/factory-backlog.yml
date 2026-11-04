@@ -61,9 +61,15 @@ jobs:
           i=next(x for x in json.load(open(sys.argv[1])) if x["task_id"]==sys.argv[2])
           open(sys.argv[3]+"/body.md","w").write(i["body"]); open(sys.argv[3]+"/title.txt","w").write(i["title"])
           print(",".join(i["labels"]))' "$RUNNER_TEMP/todo.json" "$task" "$RUNNER_TEMP" > "$RUNNER_TEMP/labels.txt"
-            url="$(gh issue create -R "$REPO" --title "$(cat "$RUNNER_TEMP/title.txt")" --body-file "$RUNNER_TEMP/body.md" --label "$(cat "$RUNNER_TEMP/labels.txt")")"
+            # Hand-off first, ready label last: the implement workflow must never see a ready
+            # issue without its hand-off.
+            other="$(tr ',' '\n' < "$RUNNER_TEMP/labels.txt" | grep -v '^factory:ready-to-implement$' | paste -sd, -)"
+            url="$(gh issue create -R "$REPO" --title "$(cat "$RUNNER_TEMP/title.txt")" --body-file "$RUNNER_TEMP/body.md" --label "$other")"
             python3 -I .factory/scripts/intake.py handoff-text --issues-json "$RUNNER_TEMP/todo.json" --task "$task" > "$RUNNER_TEMP/handoff.md"
             gh issue comment "${url##*/}" -R "$REPO" --body-file "$RUNNER_TEMP/handoff.md" >/dev/null
+            if grep -q 'factory:ready-to-implement' "$RUNNER_TEMP/labels.txt"; then
+              gh issue edit "${url##*/}" -R "$REPO" --add-label factory:ready-to-implement >/dev/null
+            fi
             echo "$task -> #${url##*/}" >> "$GITHUB_STEP_SUMMARY"
           done
 

@@ -130,10 +130,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
       - name: Admission - verify provenance of the exact digest
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh attestation verify "oci://$IMAGE" --repo "$GITHUB_REPOSITORY"
+        run: bash .factory/deploy/admit.sh "$IMAGE" factory-release.yml refs/heads/main
       - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
         if: vars.DEPLOY_PROVIDER == 'fly'
       - name: Deploy to staging
@@ -179,8 +184,13 @@ jobs:
         with:
           name: release-inputs-${{ github.run_id }}
           path: ${{ runner.temp }}/rel
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
       - name: Admission - verify provenance of the exact digest
-        run: gh attestation verify "oci://$IMAGE" --repo "$GITHUB_REPOSITORY"
+        run: bash .factory/deploy/admit.sh "$IMAGE" factory-release.yml refs/heads/main
       - name: Release-readiness pack
         id: pack
         run: |
@@ -231,6 +241,8 @@ jobs:
           DEPLOY_SSH_KNOWN_HOSTS: ${{ vars.DEPLOY_SSH_KNOWN_HOSTS }}
           PREV: ${{ steps.prev.outputs.image }}
         run: |
+          # The previous image is read from an editable Release body: admit it like any deploy.
+          bash .factory/deploy/admit.sh "$PREV" factory-release.yml refs/heads/main
           RELEASE="" bash .factory/deploy/deploy.sh production "$PREV"
           echo "::error::production release aborted and rolled back to $PREV"
       - name: Publish the GitHub Release with the readiness pack

@@ -13,7 +13,7 @@ Spec §6.1, §6.6 and §7.5 item 4. Review this document with the platform-readi
                                                       │  sandbox: no network, writes only the checkout
                                                       │  OIDC ─▶ Anthropic (workload identity federation)
                                                       ▼
-                     gates (no credentials) ─▶ verify (read-only agent) ─▶ publish (default-branch scripts)
+      holdouts (optional, no candidate code) ─▶ gates (no credentials) ─▶ verify (read-only agent) ─▶ publish (default-branch scripts)
                                                                                │
                                                                                ▼
                                                                  draft PR ─▶ owner reviews and merges
@@ -33,7 +33,8 @@ Spec §6.1, §6.6 and §7.5 item 4. Review this document with the platform-readi
 | Agent → network | Nothing | Sandbox with no allowed domains; no credentials in the job; guard blocks network tools |
 | Agent code → verdict | Exit codes only | `sandbox-exec.sh`: read-only filesystem except the checkout, no network, new PID namespace |
 | Job → job | Artifacts | Downloaded by exact name; patch bound by SHA-256 |
-| Factory → production | Image digests | Human merge; provenance verified before deploy; owner approval on `production` |
+| Factory → production | Image digests | Human merge; `admit.sh` verifies provenance (signer workflow, source ref) before every staging, production, rollback and preview deploy; owner approval on `production` |
+| Candidate lockfile → runner | Package set | Lockfile policy in the diff policy before `npm ci`; no linked, workspace or aliased packages; browsers installed from the base commit's pinned version before the candidate exists |
 | Production → factory | Alert payloads | Sanitised; become issues, never commands |
 
 ## Lethal trifecta by role (spec §6.6)
@@ -52,3 +53,5 @@ Spec §6.1, §6.6 and §7.5 item 4. Review this document with the platform-readi
 - **Content tampering.** A wrong but plausible change or a backdoored dependency leaves control flow intact. Only review, tests, holdouts and provenance catch it.
 - **Twin fidelity.** Twin fidelity is unmeasured until the live contract suites run.
 - **Unverified profile.** The bubblewrap profile is verified only in CI on Ubuntu runners.
+- **Holdout visibility.** Holdout scenarios are readable, though not writable, by the code they test inside the sandbox. A candidate could print them into the job log or the e2e artifacts. Those are visible to humans, not to future agent runs.
+- **Previews.** A preview of a factory branch runs unreviewed agent code with network access. That is why it needs the `factory:preview` label, which only a human adds. Keep preview environments free of production data and credentials.
