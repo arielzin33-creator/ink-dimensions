@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": "dist/node",
+    "sourceMap": true
+  },
+  "include": ["src/server", "src/auth", "src/providers", "src/shared", "src/web/styles/tokens.ts"]
+}
