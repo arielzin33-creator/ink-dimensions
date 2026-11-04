@@ -40,9 +40,9 @@ export interface Client {
 
 let counter = 0;
 
-export async function startTestApp(opts: { env?: Record<string, string>; providers?: Partial<Providers>; flags?: FeatureFlags } = {}): Promise<TestApp> {
+export async function startTestApp(opts: { env?: Record<string, string>; providers?: Partial<Providers>; flags?: FeatureFlags; db?: Db } = {}): Promise<TestApp> {
   const config = loadConfig({ NODE_ENV: 'test', STORAGE_PROVIDER: 'memory', LOG_LEVEL: 'silent', RELEASE: 'test-release', ...opts.env });
-  const db = await openPglite('memory://');
+  const db = opts.db ?? (await openPglite('memory://'));
   await migrate(db, join(import.meta.dirname, '../../migrations'));
   const providers = { ...createProviders(config), ...opts.providers };
   const log = createLogger({ level: config.logLevel, release: config.release });

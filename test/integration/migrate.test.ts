@@ -100,3 +100,27 @@ describe('0002 and 0003 project tables', () => {
     }
   });
 });
+
+describe('migration hygiene (NFR-008)', () => {
+  const DESTRUCTIVE = /\b(DROP\s+(TABLE|COLUMN|INDEX|CONSTRAINT|SCHEMA|TYPE|VIEW)|RENAME\s+(TO|COLUMN|CONSTRAINT)|SET\s+NOT\s+NULL|TRUNCATE)\b/i;
+
+  it('marks every destructive migration with -- factory:contract on its first line', () => {
+    const dir = join(import.meta.dirname, '../../migrations');
+    for (const m of listMigrations(dir)) {
+      const code = m.sql.replace(/--.*$/gm, '');
+      if (DESTRUCTIVE.test(code)) expect(m.sql.split('\n')[0]?.trim(), m.name).toBe('-- factory:contract');
+    }
+  });
+
+  it('v1 has no destructive migrations at all', () => {
+    const dir = join(import.meta.dirname, '../../migrations');
+    expect(listMigrations(dir).filter((m) => DESTRUCTIVE.test(m.sql.replace(/--.*$/gm, ''))).map((m) => m.name)).toEqual([]);
+  });
+
+  it('the guard recognises destructive statements', () => {
+    expect(DESTRUCTIVE.test('ALTER TABLE a DROP COLUMN b;')).toBe(true);
+    expect(DESTRUCTIVE.test('ALTER TABLE a ALTER COLUMN b SET NOT NULL;')).toBe(true);
+    expect(DESTRUCTIVE.test('ALTER TABLE a RENAME TO c;')).toBe(true);
+    expect(DESTRUCTIVE.test('ALTER TABLE a ADD COLUMN b text;')).toBe(false);
+  });
+});

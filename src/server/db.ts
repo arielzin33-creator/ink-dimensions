@@ -60,9 +60,12 @@ export async function openPglite(dataDir: string): Promise<Db> {
   };
 }
 
-export async function openPg(connectionString: string): Promise<Db> {
+export async function openPg(connectionString: string, onIdleError?: (err: Error) => void): Promise<Db> {
   const { default: pg } = await import('pg');
   const pool = new pg.Pool({ connectionString, max: 10, idleTimeoutMillis: 30_000 });
+  // An idle client can be terminated by the server (restart, failover). Without a listener the
+  // pool's 'error' event would crash the process; the pool replaces the client on next use.
+  pool.on('error', (err) => onIdleError?.(err));
   return {
     kind: 'pg',
     async query<T>(sql: string, params: unknown[] = []) {
@@ -100,6 +103,6 @@ export async function openPg(connectionString: string): Promise<Db> {
   };
 }
 
-export function openDb(opts: { databaseUrl: string | undefined; pgliteDir: string }): Promise<Db> {
-  return opts.databaseUrl ? openPg(opts.databaseUrl) : openPglite(opts.pgliteDir);
+export function openDb(opts: { databaseUrl: string | undefined; pgliteDir: string }, onIdleError?: (err: Error) => void): Promise<Db> {
+  return opts.databaseUrl ? openPg(opts.databaseUrl, onIdleError) : openPglite(opts.pgliteDir);
 }

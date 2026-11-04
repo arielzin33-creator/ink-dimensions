@@ -30,7 +30,7 @@ async function main(): Promise<void> {
     throw err;
   }
   const log = createLogger({ level: config.logLevel, release: config.release });
-  const db = await openDb(config);
+  const db = await openDb(config, (err) => log.warn('database idle client error', { err: { message: err.message } }));
   const migrations = await migrate(db, config.migrationsDir);
   const providers = createProviders(config);
   log.info('starting', {
