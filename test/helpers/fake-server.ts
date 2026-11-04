@@ -9,7 +9,7 @@ export interface RecordedRequest {
   body: string;
 }
 
-export type FakeHandler = (req: RecordedRequest, res: ServerResponse) => void | Promise<void>;
+export type FakeHandler = (req: RecordedRequest, res: ServerResponse) => unknown;
 
 export async function startFakeServer(handler: FakeHandler) {
   const requests: RecordedRequest[] = [];
