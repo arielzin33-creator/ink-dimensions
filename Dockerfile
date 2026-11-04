@@ -11,7 +11,11 @@ COPY . .
 RUN npm run build && npm prune --omit=dev --ignore-scripts
 
 FROM node:22-bookworm-slim AS runtime
-ENV NODE_ENV=production \
+# The release id (git sha) is baked into the image so /metrics.json reports it on every
+# provider; deploy verification compares it with the commit being released.
+ARG RELEASE=dev
+ENV RELEASE=$RELEASE \
+    NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3000 \
     PGLITE_DIR=/data/pglite \
