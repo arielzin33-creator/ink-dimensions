@@ -3,20 +3,23 @@ import { randomUUID } from 'node:crypto';
 import { requireUser } from '../../auth/guard.js';
 import { renderSchema, type Script } from '../../shared/schemas.js';
 import { isUuid, loadOwnedProject } from '../access.js';
-import type { AppDeps } from '../app.js';
+import type { ResolvedDeps } from '../app.js';
+import { requirePhotoPath, requireRendering } from '../flags.js';
 import { badRequest, HttpError, notFound, refused } from '../errors.js';
 import { json, type Router } from '../http.js';
 import { jobDto, panelTexts, type RenderJobRow, type RenderRunner } from '../render-runner.js';
 
 export const PANEL_IMAGE_CSP = "default-src 'none'; img-src data:; style-src 'unsafe-inline'; frame-ancestors 'none'";
 
-export function registerRenderRoutes(router: Router, deps: AppDeps, runner: RenderRunner): void {
+export function registerRenderRoutes(router: Router, deps: ResolvedDeps, runner: RenderRunner): void {
   const guard = { db: deps.db, cookieSecure: deps.config.cookieSecure };
 
   router.post('/api/projects/:id/render', async (ctx) => {
     const user = await requireUser(ctx, guard);
     const project = await loadOwnedProject(deps.db, user.id, ctx.params.id);
     const body = await ctx.body(renderSchema);
+    await requireRendering(deps.flags);
+    if (project.path === 'photo') await requirePhotoPath(deps.flags);
     const { rows } = await deps.db.query<{ content: Script }>('SELECT content FROM scripts WHERE project_id = $1', [project.id]);
     if (!rows[0]) throw badRequest('Generate a script first.');
     const panels = rows[0].content.pages.flatMap((p) => p.panels);

@@ -5,7 +5,8 @@ import { requireUser } from '../../auth/guard.js';
 import { createProjectSchema, updateProjectSchema } from '../../shared/schemas.js';
 import { STYLE_PRESETS } from '../../shared/styles.js';
 import { loadOwnedProject, type ProjectRow } from '../access.js';
-import type { AppDeps } from '../app.js';
+import type { ResolvedDeps } from '../app.js';
+import { requirePhotoPath } from '../flags.js';
 import { deleteProjectData } from '../deletion.js';
 import { projectDto, projectSummary } from '../dto.js';
 import { conflict, refused } from '../errors.js';
@@ -13,7 +14,7 @@ import { json, noContent, type Router } from '../http.js';
 
 const patchSchema = z.object({ ...updateProjectSchema.shape, path: z.unknown().optional() }).strict();
 
-export function registerProjectRoutes(router: Router, deps: AppDeps): void {
+export function registerProjectRoutes(router: Router, deps: ResolvedDeps): void {
   const guard = { db: deps.db, cookieSecure: deps.config.cookieSecure };
 
   router.get('/api/styles', async () => json(200, { styles: STYLE_PRESETS.map(({ id, label, description }) => ({ id, label, description })) }));
@@ -27,6 +28,7 @@ export function registerProjectRoutes(router: Router, deps: AppDeps): void {
   router.post('/api/projects', async (ctx) => {
     const user = await requireUser(ctx, guard);
     const body = await ctx.body(createProjectSchema);
+    if (body.path === 'photo') await requirePhotoPath(deps.flags);
     const { rows } = await deps.db.query<ProjectRow>('INSERT INTO projects (id, user_id, title, path) VALUES ($1, $2, $3, $4) RETURNING *', [
       randomUUID(),
       user.id,

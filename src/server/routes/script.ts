@@ -4,13 +4,14 @@ import { generateScriptSchema, saveScriptSchema, type Script } from '../../share
 import { getStyle } from '../../shared/styles.js';
 import type { CharacterDto } from '../../shared/types.js';
 import { loadOwnedProject, type ProjectRow } from '../access.js';
-import type { AppDeps } from '../app.js';
+import type { ResolvedDeps } from '../app.js';
+import { requirePhotoPath } from '../flags.js';
 import { loadCharacters } from '../dto.js';
 import { badRequest, conflict, notFound, refused } from '../errors.js';
 import { json, type Router } from '../http.js';
 import { generateScript, normaliseScript, panelIds, scriptDto, scriptTexts, type ScriptRow } from '../script-service.js';
 
-export function registerScriptRoutes(router: Router, deps: AppDeps): void {
+export function registerScriptRoutes(router: Router, deps: ResolvedDeps): void {
   const guard = { db: deps.db, cookieSecure: deps.config.cookieSecure };
 
   async function moderate(project: ProjectRow, texts: string[]) {
@@ -58,6 +59,7 @@ export function registerScriptRoutes(router: Router, deps: AppDeps): void {
     const user = await requireUser(ctx, guard);
     const project = await loadOwnedProject(deps.db, user.id, ctx.params.id);
     const { pages } = await ctx.body(generateScriptSchema);
+    if (project.path === 'photo') await requirePhotoPath(deps.flags);
     if (!project.plot.trim()) throw badRequest('Write the plot first.');
     const characters = await loadCharacters(deps.db, project.id);
     checkCast(project, characters);

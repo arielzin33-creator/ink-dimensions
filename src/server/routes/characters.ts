@@ -6,7 +6,8 @@ import { requireUser } from '../../auth/guard.js';
 import { storageKeys } from '../../providers/storage/types.js';
 import { characterSchema, imageUploadSchema, IMAGE_TYPES, LIMITS, updateCharacterSchema } from '../../shared/schemas.js';
 import { isUuid, loadCharacter, loadOwnedProject, touchProject, type CharacterImageRow, type CharacterRow, type ProjectRow } from '../access.js';
-import type { AppDeps } from '../app.js';
+import type { ResolvedDeps } from '../app.js';
+import { requirePhotoPath } from '../flags.js';
 import { deleteCharacterData, deleteCharacterImage } from '../deletion.js';
 import { characterDto, imageDto } from '../dto.js';
 import { badRequest, conflict, HttpError, notFound, refused } from '../errors.js';
@@ -21,7 +22,7 @@ const createSchema = characterSchema.extend({
 const consentRequired = () =>
   new HttpError(400, 'consent_required', "Confirm that you have this person's permission to use their photo before uploading it.");
 
-export function registerCharacterRoutes(router: Router, deps: AppDeps): void {
+export function registerCharacterRoutes(router: Router, deps: ResolvedDeps): void {
   const guard = { db: deps.db, cookieSecure: deps.config.cookieSecure };
   const maxBytes = deps.config.uploadMaxBytes;
 
@@ -36,6 +37,7 @@ export function registerCharacterRoutes(router: Router, deps: AppDeps): void {
     if (kind !== expected) {
       throw badRequest(project.path === 'photo' ? 'Projects on the real-photo path take photos, not reference art.' : 'Projects with invented characters take reference art, not photos of real people.');
     }
+    if (kind === 'photo') await requirePhotoPath(deps.flags);
     if (kind === 'photo' && consent !== true) throw consentRequired();
     const { rows: countRows } = await deps.db.query<{ n: number }>('SELECT count(*)::int AS n FROM character_images WHERE character_id = $1', [characterId]);
     if ((countRows[0]?.n ?? 0) >= LIMITS.imagesPerCharacter) throw conflict(`A character can have at most ${LIMITS.imagesPerCharacter} images.`);
@@ -63,6 +65,7 @@ export function registerCharacterRoutes(router: Router, deps: AppDeps): void {
     if (project.path === 'invented' && !body.description && !body.image) {
       throw badRequest('Describe the character, add reference art, or both.');
     }
+    if (project.path === 'photo' && body.image) await requirePhotoPath(deps.flags);
     if (project.path === 'photo' && body.image && body.consent !== true) throw consentRequired();
     await moderateCharacter(project, [body.name, body.description]);
     const { rows: n } = await deps.db.query<{ n: number }>('SELECT count(*)::int AS n FROM characters WHERE project_id = $1', [project.id]);

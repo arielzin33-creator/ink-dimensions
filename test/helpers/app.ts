@@ -7,6 +7,7 @@ import { createProviders, type Providers } from '../../src/providers/index.js';
 import { createApp, type App } from '../../src/server/app.js';
 import { loadConfig } from '../../src/server/config.js';
 import { openPglite, type Db } from '../../src/server/db.js';
+import type { FeatureFlags } from '../../src/server/flags.js';
 import { createLogger } from '../../src/server/logger.js';
 import { migrate } from '../../src/server/migrate.js';
 
@@ -39,13 +40,13 @@ export interface Client {
 
 let counter = 0;
 
-export async function startTestApp(opts: { env?: Record<string, string>; providers?: Partial<Providers> } = {}): Promise<TestApp> {
+export async function startTestApp(opts: { env?: Record<string, string>; providers?: Partial<Providers>; flags?: FeatureFlags } = {}): Promise<TestApp> {
   const config = loadConfig({ NODE_ENV: 'test', STORAGE_PROVIDER: 'memory', LOG_LEVEL: 'silent', RELEASE: 'test-release', ...opts.env });
   const db = await openPglite('memory://');
   await migrate(db, join(import.meta.dirname, '../../migrations'));
   const providers = { ...createProviders(config), ...opts.providers };
   const log = createLogger({ level: config.logLevel, release: config.release });
-  const app = createApp({ config, db, log, providers }, { autoRun: false });
+  const app = createApp({ config, db, log, providers, ...(opts.flags ? { flags: opts.flags } : {}) }, { autoRun: false });
   const server = createServer(app.handler);
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;

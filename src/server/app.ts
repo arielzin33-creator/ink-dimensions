@@ -7,6 +7,7 @@ import type { Db } from './db.js';
 import { createRequestHandler, json, Router, type Reply } from './http.js';
 import type { Logger } from './logger.js';
 import { createMetrics, type Metrics } from './metrics.js';
+import { createFeatureFlags, type FeatureFlags } from './flags.js';
 import { registerCharacterRoutes } from './routes/characters.js';
 import { registerPageRoutes } from './routes/pages.js';
 import { registerProjectRoutes } from './routes/projects.js';
@@ -21,7 +22,11 @@ export interface AppDeps {
   providers: Providers;
   /** Created by createApp when absent. */
   metrics?: Metrics;
+  /** Created from config.flagsFile when absent. */
+  flags?: FeatureFlags;
 }
+
+export type ResolvedDeps = AppDeps & { metrics: Metrics; flags: FeatureFlags };
 
 export type Fallback = (req: IncomingMessage, res: ServerResponse, ctx: { reqId: string }) => Promise<Reply | 'handled'>;
 
@@ -37,7 +42,9 @@ export interface App {
 export function createApp(deps: AppDeps, opts: { fallback?: Fallback; autoRun?: boolean } = {}): App {
   const router = new Router();
   const metrics = deps.metrics ?? createMetrics();
-  deps = { ...deps, metrics };
+  const flags = deps.flags ?? createFeatureFlags({ file: deps.config.flagsFile, log: deps.log });
+  const full: ResolvedDeps = { ...deps, metrics, flags };
+  deps = full;
   const runner = createRenderRunner(deps, { autoRun: opts.autoRun ?? true });
 
   router.get('/healthz', async () => json(200, { status: 'ok', release: deps.config.release }));
@@ -73,11 +80,13 @@ export function createApp(deps: AppDeps, opts: { fallback?: Fallback; autoRun?: 
     });
   });
 
+  router.get('/api/features', async () => json(200, { photoPathEnabled: await flags.photoPathEnabled(), renderEnabled: await flags.renderEnabled() }));
+
   registerAuthRoutes(router, { db: deps.db, storage: deps.providers.storage, cookieSecure: deps.config.cookieSecure });
-  registerProjectRoutes(router, deps);
-  registerCharacterRoutes(router, deps);
-  registerScriptRoutes(router, deps);
-  registerRenderRoutes(router, deps, runner);
+  registerProjectRoutes(router, full);
+  registerCharacterRoutes(router, full);
+  registerScriptRoutes(router, full);
+  registerRenderRoutes(router, full, runner);
   registerPageRoutes(router, deps);
 
   const handler = createRequestHandler({ router, log: deps.log, release: deps.config.release, onResponse: (status) => metrics.recordResponse(status), ...(opts.fallback ? { fallback: opts.fallback } : {}) });

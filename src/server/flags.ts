@@ -3,6 +3,7 @@
 import { randomUUID } from 'node:crypto';
 import { OpenFeature, type Provider } from '@openfeature/server-sdk';
 import { FlagdFileProvider } from '../providers/flags/flagd-file.js';
+import { HttpError } from './errors.js';
 import type { Logger } from './logger.js';
 
 export const FLAG_KEYS = { photoPath: 'photo-path-enabled', render: 'render-enabled' } as const;
@@ -24,4 +25,16 @@ export function createFeatureFlags(opts: { file?: string; provider?: Provider; l
     photoPathEnabled: () => client.getBooleanValue(FLAG_KEYS.photoPath, true),
     renderEnabled: () => client.getBooleanValue(FLAG_KEYS.render, true),
   };
+}
+
+export async function requirePhotoPath(flags: FeatureFlags): Promise<void> {
+  if (!(await flags.photoPathEnabled())) {
+    throw new HttpError(403, 'feature_disabled', 'Comics from real photos are switched off at the moment. Existing projects can still be read, exported and deleted.');
+  }
+}
+
+export async function requireRendering(flags: FeatureFlags): Promise<void> {
+  if (!(await flags.renderEnabled())) {
+    throw new HttpError(503, 'feature_disabled', 'Rendering is paused at the moment. Try again later.');
+  }
 }
