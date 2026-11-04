@@ -50,3 +50,22 @@ describe('migration runner', () => {
     expect(r.applied.length).toBe(files.length);
   });
 });
+
+describe('0001 users and sessions', () => {
+  it('enforces lower-case unique emails and cascades sessions', async () => {
+    db = await openPglite('memory://');
+    await migrate(db, join(import.meta.dirname, '../../migrations'));
+    const id = '00000000-0000-4000-8000-000000000001';
+    await db.query('INSERT INTO users (id, email, password_hash) VALUES ($1, $2, $3)', [id, 'a@example.com', 'h']);
+    await expect(
+      db.query('INSERT INTO users (id, email, password_hash) VALUES ($1, $2, $3)', ['00000000-0000-4000-8000-000000000002', 'a@example.com', 'h']),
+    ).rejects.toThrow();
+    await expect(
+      db.query('INSERT INTO users (id, email, password_hash) VALUES ($1, $2, $3)', ['00000000-0000-4000-8000-000000000003', 'B@example.com', 'h']),
+    ).rejects.toThrow();
+    await db.query("INSERT INTO sessions (token_hash, user_id, expires_at) VALUES ('t', $1, now() + interval '1 day')", [id]);
+    await db.query('DELETE FROM users WHERE id = $1', [id]);
+    const { rows } = await db.query<{ n: number }>('SELECT count(*)::int AS n FROM sessions');
+    expect(rows[0]?.n).toBe(0);
+  });
+});
