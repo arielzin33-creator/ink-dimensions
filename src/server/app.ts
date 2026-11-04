@@ -1,5 +1,6 @@
 // Application wiring: dependencies in, request handler out. Tests build it with twins.
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { registerAuthRoutes } from '../auth/routes.js';
 import type { Providers } from '../providers/index.js';
 import type { Config } from './config.js';
 import type { Db } from './db.js';
@@ -35,6 +36,8 @@ export function createApp(deps: AppDeps, opts: { fallback?: Fallback; autoRun?: 
       return json(503, { status: 'unavailable' });
     }
   });
+
+  registerAuthRoutes(router, { db: deps.db, storage: deps.providers.storage, cookieSecure: deps.config.cookieSecure });
 
   const handler = createRequestHandler({ router, log: deps.log, release: deps.config.release, ...(opts.fallback ? { fallback: opts.fallback } : {}) });
   return { router, handler, stop: async () => undefined };
