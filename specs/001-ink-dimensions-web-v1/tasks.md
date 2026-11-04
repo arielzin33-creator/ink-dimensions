@@ -219,8 +219,8 @@ Marked "untested against the live service".
 - depends_on: T-031
 - requirements: US-12, FR-031, NFR-002, FR-033, FR-034
 
-The README records the open owner decisions (FR-030, FR-033, FR-034) and the v1 behaviour until
-they are made: no default hosted vendor, no age gate, no automatic retention deletion.
+The README records the owner decisions on FR-030, FR-033 and FR-034 (made 2026-11-05) and what is
+not built yet: the age confirmation, the guardian confirmation and automatic photo deletion.
 
 ## T-033: Expose in-process metrics
 - files: src/server/metrics.ts, src/server/http.ts, src/server/app.ts, src/server/render-runner.ts, test/integration/metrics.test.ts

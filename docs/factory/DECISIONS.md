@@ -150,3 +150,22 @@ must cite their run of evidence (charter §9).
   issues) is writable by them.
 - **Not yet verified:** the workflows and the evidence collector have run only against a local
   git remote with a stubbed `gh`, not against GitHub.
+
+## 2026-11-05 — Owner decisions: PR/FAQ kill gate, spec questions, SLO, hosting
+
+- **PR/FAQ:** `proceed`. First customer: "1st test", the owner as sole tester. The owner accepts
+  ownership of the listed risks. Going ahead does not solve them: moderation is a keyword floor.
+- **FR-022, FR-030:** photos stay self-hosted, and the self-hosted pipeline is the production default.
+- **FR-032:** free and invite-only, at 10 script generations and 100 rendered panels per person per day.
+- **FR-033:** 18 and over; a parent or legal guardian may upload a photo of their own child. The owner
+  chose this over a ban on photos of minors. Legal advice is required before it reaches anyone but
+  the owner.
+- **FR-034:** photos and derived images are deleted after 90 idle days, with advance warning (14 days
+  proposed). Scripts and invented characters are kept.
+- **SLO:** 99.0% availability, p95 1500 ms, over 28 days. Looser than the drafted 99.5% and 800 ms, for
+  a sole-tester pilot; tighten it before opening up.
+- **Hosting:** none yet. `DEPLOY_PROVIDER` stays `none` (dry run).
+- **Repository visibility:** public. GitHub offers required reviewers on environments in private
+  repositories only on Enterprise, and the charter requires the owner's approval of production.
+- **Not decided here:** the charter stays in draft, and the constitution, spec, plan and tasks are not
+  approved. FR-032, FR-033 and FR-034 are decided but not built (`docs/product/OPEN-ITEMS.md`).
