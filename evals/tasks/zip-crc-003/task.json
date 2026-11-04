@@ -1,0 +1,15 @@
+{
+  "id": "zip-crc-003",
+  "title": "Exported ZIP files are reported as corrupt",
+  "partition": "dev",
+  "created": "2026-11-04",
+  "component": "src/server/zip.ts",
+  "issue": {
+    "title": "Exported ZIP files are reported as corrupt",
+    "body": "Unzipping an exported comic fails with a CRC error in every entry."
+  },
+  "prepare": "ln -s \"$EVAL_REPO_ROOT/node_modules\" node_modules",
+  "check": "node_modules/.bin/vitest run test/unit/zip.test.ts",
+  "pass_to_pass": "node_modules/.bin/vitest run test/unit",
+  "check_timeout": 300
+}

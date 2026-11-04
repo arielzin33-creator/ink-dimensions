@@ -1,0 +1,13 @@
+diff --git b/src/providers/moderation/rules.ts a/src/providers/moderation/rules.ts
+index bb927e1..3769345 100644
+--- b/src/providers/moderation/rules.ts
++++ a/src/providers/moderation/rules.ts
+@@ -19,7 +19,7 @@ const RULES: Record<ModerationCategory, RegExp[]> = {
+ 
+ export function matchCategories(text: string): ModerationCategory[] {
+   const t = text.toLowerCase().replace(/\s+/g, ' ');
+-  return (Object.keys(RULES) as ModerationCategory[]).filter((c) => RULES[c].every((re) => re.test(t)));
++  return (Object.keys(RULES) as ModerationCategory[]).filter((c) => RULES[c].some((re) => re.test(t)));
+ }
+ 
+ export function createRulesModeration(): ModerationProvider {

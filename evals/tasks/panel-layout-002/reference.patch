@@ -1,0 +1,13 @@
+diff --git b/src/shared/compose.ts a/src/shared/compose.ts
+index 81e48d5..c5e8aca 100644
+--- b/src/shared/compose.ts
++++ a/src/shared/compose.ts
+@@ -38,7 +38,7 @@ export function layoutPanels(count: number): Rect[] {
+   rows.forEach((cols, r) => {
+     const colW = (innerW - GUTTER * (cols - 1)) / cols;
+     for (let c = 0; c < cols; c++) {
+-      rects.push({ x: MARGIN + c * (colW + GUTTER), y: MARGIN + r * rowH, w: colW, h: rowH });
++      rects.push({ x: MARGIN + c * (colW + GUTTER), y: MARGIN + r * (rowH + GUTTER), w: colW, h: rowH });
+     }
+   });
+   return rects.slice(0, count);

@@ -1,0 +1,15 @@
+{
+  "id": "jpeg-sniff-001",
+  "title": "JPEG uploads are rejected",
+  "partition": "dev",
+  "created": "2026-11-04",
+  "component": "src/providers/image/sniff.ts",
+  "issue": {
+    "title": "JPEG uploads are rejected",
+    "body": "Uploading a normal JPEG photo fails with an unsupported-type error, while PNG works."
+  },
+  "prepare": "ln -s \"$EVAL_REPO_ROOT/node_modules\" node_modules",
+  "check": "node_modules/.bin/vitest run test/unit/uploads.test.ts",
+  "pass_to_pass": "node_modules/.bin/vitest run test/unit",
+  "check_timeout": 300
+}

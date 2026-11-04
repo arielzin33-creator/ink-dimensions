@@ -1,0 +1,13 @@
+diff --git b/src/server/zip.ts a/src/server/zip.ts
+index 82f4274..6d08bec 100644
+--- b/src/server/zip.ts
++++ a/src/server/zip.ts
+@@ -15,7 +15,7 @@ const CRC_TABLE = (() => {
+ export function crc32(data: Buffer): number {
+   let c = 0xffffffff;
+   for (const b of data) c = (CRC_TABLE[(c ^ b) & 0xff] as number) ^ (c >>> 8);
+-  return c >>> 0;
++  return (c ^ 0xffffffff) >>> 0;
+ }
+ 
+ export interface ZipEntry {

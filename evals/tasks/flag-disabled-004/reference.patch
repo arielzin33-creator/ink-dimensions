@@ -1,0 +1,13 @@
+diff --git b/src/providers/flags/flagd-file.ts a/src/providers/flags/flagd-file.ts
+index b3e06ff..54ddc8e 100644
+--- b/src/providers/flags/flagd-file.ts
++++ a/src/providers/flags/flagd-file.ts
+@@ -69,7 +69,7 @@ export class FlagdFileProvider implements Provider {
+     if (!flag) {
+       return { value: defaultValue, reason: StandardResolutionReasons.ERROR, errorCode: ErrorCode.FLAG_NOT_FOUND, errorMessage: `flag ${key} not found` };
+     }
+-    if (flag.state === 'disabled') return { value: defaultValue, reason: StandardResolutionReasons.DISABLED };
++    if (flag.state === 'DISABLED') return { value: defaultValue, reason: StandardResolutionReasons.DISABLED };
+     const variant = flag.defaultVariant;
+     const value = variant !== undefined ? flag.variants?.[variant] : undefined;
+     if (variant === undefined || value === undefined) {

@@ -1,0 +1,15 @@
+{
+  "id": "panel-layout-002",
+  "title": "Panels in lower rows overlap the row above",
+  "partition": "dev",
+  "created": "2026-11-04",
+  "component": "src/shared/compose.ts",
+  "issue": {
+    "title": "Panels in lower rows overlap the row above",
+    "body": "On pages with more than one row of panels, lower panels are drawn on top of the gutter and overlap the panel above."
+  },
+  "prepare": "ln -s \"$EVAL_REPO_ROOT/node_modules\" node_modules",
+  "check": "node_modules/.bin/vitest run test/unit/compose.test.ts test/unit/compose-layout-hidden.test.ts",
+  "pass_to_pass": "node_modules/.bin/vitest run test/unit",
+  "check_timeout": 300
+}
