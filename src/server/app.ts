@@ -7,6 +7,7 @@ import type { Db } from './db.js';
 import { createRequestHandler, json, Router, type Reply } from './http.js';
 import type { Logger } from './logger.js';
 import { registerCharacterRoutes } from './routes/characters.js';
+import { registerPageRoutes } from './routes/pages.js';
 import { registerProjectRoutes } from './routes/projects.js';
 import { registerRenderRoutes } from './routes/render.js';
 import { createRenderRunner, type RenderRunner } from './render-runner.js';
@@ -49,6 +50,7 @@ export function createApp(deps: AppDeps, opts: { fallback?: Fallback; autoRun?: 
   registerCharacterRoutes(router, deps);
   registerScriptRoutes(router, deps);
   registerRenderRoutes(router, deps, runner);
+  registerPageRoutes(router, deps);
 
   const handler = createRequestHandler({ router, log: deps.log, release: deps.config.release, ...(opts.fallback ? { fallback: opts.fallback } : {}) });
   return { router, runner, handler, stop: () => runner.stop() };
