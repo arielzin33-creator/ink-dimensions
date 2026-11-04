@@ -69,3 +69,34 @@ describe('0001 users and sessions', () => {
     expect(rows[0]?.n).toBe(0);
   });
 });
+
+describe('0002 and 0003 project tables', () => {
+  it('requires consent on photos, limits job status and cascades from users', async () => {
+    db = await openPglite('memory://');
+    await migrate(db, join(import.meta.dirname, '../../migrations'));
+    const u = '00000000-0000-4000-8000-0000000000aa';
+    const p = '00000000-0000-4000-8000-0000000000bb';
+    const c = '00000000-0000-4000-8000-0000000000cc';
+    await db.query("INSERT INTO users (id, email, password_hash) VALUES ($1, 'x@example.com', 'h')", [u]);
+    await db.query("INSERT INTO projects (id, user_id, title, path) VALUES ($1, $2, 'T', 'photo')", [p, u]);
+    await expect(db.query("INSERT INTO projects (id, user_id, title, path) VALUES (gen_random_uuid(), $1, 'T', 'video')", [u])).rejects.toThrow();
+    await db.query("INSERT INTO characters (id, project_id, name) VALUES ($1, $2, 'Mo')", [c, p]);
+    const img = (kind: string, consent: string | null, key: string) =>
+      db!.query(
+        "INSERT INTO character_images (id, character_id, project_id, kind, storage_key, content_type, byte_size, consent_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, 'image/png', 10, $5)",
+        [c, p, kind, key, consent],
+      );
+    await expect(img('photo', null, 'k1')).rejects.toThrow(/character_images_photo_consent/);
+    await img('photo', new Date().toISOString(), 'k2');
+    await img('reference', null, 'k3');
+    await db.query("INSERT INTO scripts (project_id, content) VALUES ($1, '{\"pages\":[]}'::jsonb)", [p]);
+    await expect(
+      db.query("INSERT INTO render_jobs (id, project_id, user_id, status, panel_ids) VALUES (gen_random_uuid(), $1, $2, 'paused', '[]'::jsonb)", [p, u]),
+    ).rejects.toThrow();
+    await db.query('DELETE FROM users WHERE id = $1', [u]);
+    for (const t of ['projects', 'characters', 'character_images', 'scripts', 'render_jobs']) {
+      const { rows } = await db.query<{ n: number }>(`SELECT count(*)::int AS n FROM ${t}`);
+      expect(rows[0]?.n, t).toBe(0);
+    }
+  });
+});
