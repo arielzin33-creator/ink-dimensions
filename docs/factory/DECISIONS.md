@@ -169,3 +169,23 @@ must cite their run of evidence (charter §9).
   repositories only on Enterprise, and the charter requires the owner's approval of production.
 - **Not decided here:** the charter stays in draft, and the constitution, spec, plan and tasks are not
   approved. FR-032, FR-033 and FR-034 are decided but not built (`docs/product/OPEN-ITEMS.md`).
+
+## 2026-11-05 — Owner decisions for spec 002
+
+- **Invitations:** created on an administrator page in the app, chosen over one-time codes from a
+  command and over one shared code. It costs an administrator flag and more load-bearing code.
+- **Deletion warning:** by email with the vendor chosen later, plus a notice in the app. Auto-deletion
+  stays off in production until a real email service is configured, so nobody loses photos unwarned.
+- **Build order:** drafts first. Building starts after the owner approves the constitution, then the
+  spec, plan and tasks.
+- **Not decided here:** the other values in `specs/002-invites-limits-retention/` are proposals until
+  the owner approves it.
+
+## 2026-11-08 — Owner approvals and photos of minors
+
+- **Approved:** the constitution, then spec 001's and spec 002's spec, plan and tasks, by the owner
+  (arielzin33-creator) in conversation. The charter is set to ready in a separate PR.
+- **Photos of minors:** allowed from the start, by a parent or legal guardian who confirms it with the
+  upload. This replaces the 2026-11-05 condition that legal advice comes first: the owner chose not to
+  wait for it and accepts the risk. A switch, on by default, can refuse these uploads without a release.
+- **Spec 002's other proposals:** accepted as written.

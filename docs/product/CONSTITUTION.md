@@ -1,9 +1,9 @@
 ---
 artifact: constitution
 product: Ink Dimensions
-status: draft            # draft | approved
-approved_by: ""
-approved_on: ""
+status: approved         # draft | approved
+approved_by: "arielzin33-creator"
+approved_on: "2026-11-08"
 ---
 
 # Ink Dimensions constitution
@@ -34,7 +34,9 @@ human has verified them.
 
 ## Article 4 — Data and privacy
 - Personal data held: account email, a password hash, projects, plots, scripts, character
-  descriptions, uploaded photos and reference art, and generated panel images.
+  descriptions, uploaded photos and reference art, generated panel images, and the email address
+  on an invitation.
+- An email service receives only the recipient's address and a message with no project content.
 - Photos of real people are the most sensitive data. They are uploaded only with an explicit
   consent confirmation per upload, stored only in private storage behind the storage interface,
   used only for the project they were uploaded to, never used for training, and never shared
