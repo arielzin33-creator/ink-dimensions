@@ -28,6 +28,8 @@ test('sign up, sign out and sign in again', async ({ page }) => {
 
 test('the sign-up form can be completed with the keyboard only', async ({ page }) => {
   await page.goto('/signup');
+  // Tabbing before the app has rendered the form focuses nothing, which made this test flaky.
+  await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
   await page.keyboard.press('Tab'); // skip link
   await page.keyboard.press('Tab'); // brand link
   await page.keyboard.press('Tab');
