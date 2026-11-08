@@ -2,9 +2,9 @@
 artifact: plan
 id: 002-invites-limits-retention
 spec: specs/002-invites-limits-retention/spec.md
-status: draft            # draft | approved
-approved_by: ""
-approved_on: ""
+status: approved         # draft | approved
+approved_by: "arielzin33-creator"
+approved_on: "2026-11-08"
 ---
 
 # Plan 002: Invites, daily limits, age checks and photo retention
@@ -57,7 +57,7 @@ SQL through `Db`, and React pages. This plan reuses these existing pieces:
 **Age and guardians.** `signUpSchema` gains `ageConfirmed: true` and an optional `invite`. The two
 photo upload paths in `src/server/routes/characters.ts` gain `subject: 'adult' | 'minor'` and
 `guardianConfirmed`. There is deliberately no default, because a silent "adult" would defeat
-FR-110. A new flag, `minor-photos-enabled`, is off by default.
+FR-110. A new flag, `minor-photos-enabled`, is on by default (owner decision, 2026-11-08).
 
 **Daily limits (`src/server/usage.ts`).** One conditional upsert per request, so the database
 enforces the limit under concurrency:
@@ -142,8 +142,8 @@ list and project page. Refusals use the error display already there.
 - Tier 0: operator documentation.
 - **Highest product risk:** retention deletes irreversibly. Mitigations: the warning must be recorded
   first, production stays off until a real email service exists, and the flag can pause it.
-- **Known limits:** self-declared age and guardianship are not verification (legal advice is still
-  required); there is no bounce handling; and the self-hosted server's own copies need the operator's
+- **Known limits:** self-declared age and guardianship are not verification (the owner chose not to
+  wait for legal advice); there is no bounce handling; and the self-hosted server's own copies need the operator's
   scheduled clean-up (FR-125). That clean-up has not been tried against a real server.
 
 ## 7. Test strategy

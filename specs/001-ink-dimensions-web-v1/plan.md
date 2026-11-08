@@ -2,9 +2,9 @@
 artifact: plan
 id: 001-ink-dimensions-web-v1
 spec: specs/001-ink-dimensions-web-v1/spec.md
-status: draft            # draft | approved
-approved_by: ""
-approved_on: ""
+status: approved         # draft | approved
+approved_by: "arielzin33-creator"
+approved_on: "2026-11-08"
 ---
 
 # Plan 001: Ink Dimensions web v1

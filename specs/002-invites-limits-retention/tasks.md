@@ -2,9 +2,9 @@
 artifact: tasks
 id: 002-invites-limits-retention
 plan: specs/002-invites-limits-retention/plan.md
-status: draft            # draft | approved
-approved_by: ""
-approved_on: ""
+status: approved         # draft | approved
+approved_by: "arielzin33-creator"
+approved_on: "2026-11-08"
 ---
 
 # Tasks 002: Invites, daily limits, age checks and photo retention

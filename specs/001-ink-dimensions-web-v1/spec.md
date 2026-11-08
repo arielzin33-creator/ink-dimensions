@@ -2,9 +2,9 @@
 artifact: spec
 id: 001-ink-dimensions-web-v1
 product: Ink Dimensions
-status: draft            # draft | approved
-approved_by: ""
-approved_on: ""
+status: approved         # draft | approved
+approved_by: "arielzin33-creator"
+approved_on: "2026-11-08"
 constitution: docs/product/CONSTITUTION.md
 ---
 
@@ -251,8 +251,8 @@ Providers and operations
   is built; the rest is tracked in `docs/product/OPEN-ITEMS.md`.
 - **FR-033**: Account eligibility: the minimum age is 18, confirmed at registration. On the
   real-photo path, a photo of a minor MAY be uploaded only by that minor's parent or legal
-  guardian, confirmed with the upload (owner decision, 2026-11-05; legal advice is required before
-  this reaches anyone but the owner). Not built yet; tracked in `docs/product/OPEN-ITEMS.md`.
+  guardian, confirmed with the upload (owner decision, 2026-11-05; on 2026-11-08 the owner chose to
+  allow it without waiting for legal advice). Specified in spec 002; tracked in `docs/product/OPEN-ITEMS.md`.
 - **FR-034**: Retention: a project with no activity for 90 days MUST have its photos and every
   image derived from them deleted automatically, after warning its owner at least 14 days before.
   Scripts and invented characters are kept until the owner deletes them (owner decision,

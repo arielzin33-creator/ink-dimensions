@@ -180,3 +180,12 @@ must cite their run of evidence (charter §9).
   spec, plan and tasks.
 - **Not decided here:** the other values in `specs/002-invites-limits-retention/` are proposals until
   the owner approves it.
+
+## 2026-11-08 — Owner approvals and photos of minors
+
+- **Approved:** the constitution, then spec 001's and spec 002's spec, plan and tasks, by the owner
+  (arielzin33-creator) in conversation. The charter is set to ready in a separate PR.
+- **Photos of minors:** allowed from the start, by a parent or legal guardian who confirms it with the
+  upload. This replaces the 2026-11-05 condition that legal advice comes first: the owner chose not to
+  wait for it and accepts the risk. A switch, on by default, can refuse these uploads without a release.
+- **Spec 002's other proposals:** accepted as written.

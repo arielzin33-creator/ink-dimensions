@@ -1,9 +1,9 @@
 ---
 artifact: constitution
 product: Ink Dimensions
-status: draft            # draft | approved
-approved_by: ""
-approved_on: ""
+status: approved         # draft | approved
+approved_by: "arielzin33-creator"
+approved_on: "2026-11-08"
 ---
 
 # Ink Dimensions constitution
