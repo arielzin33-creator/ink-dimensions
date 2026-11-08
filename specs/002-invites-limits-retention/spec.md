@@ -2,9 +2,9 @@
 artifact: spec
 id: 002-invites-limits-retention
 product: Ink Dimensions
-status: draft            # draft | approved
-approved_by: ""
-approved_on: ""
+status: approved         # draft | approved
+approved_by: "arielzin33-creator"
+approved_on: "2026-11-08"
 constitution: docs/product/CONSTITUTION.md
 ---
 
@@ -72,10 +72,10 @@ is only ever uploaded by their parent or legal guardian.
 Acceptance scenarios:
 1. **Given** a real-photo project, **When** I upload a photo without stating whether it shows a
    minor, **Then** the upload is refused.
-2. **Given** photos of minors are switched on, **When** I upload a photo of a minor and confirm I
-   am their parent or legal guardian, **Then** it is stored with that confirmation recorded.
-3. **Given** photos of minors are switched off, which is the default, **When** I upload a photo of
-   a minor, **Then** the upload is refused with a clear message.
+2. **Given** a real-photo project, **When** I upload a photo of a minor and confirm I am their
+   parent or legal guardian, **Then** it is stored with that confirmation recorded.
+3. **Given** the operator has switched photos of minors off, **When** I upload a photo of a minor,
+   **Then** the upload is refused with a clear message.
 
 ### US-5: Warning before photos are deleted  (priority: P1)
 As a storyteller, I want to be warned before an idle project loses its photos, so that I can keep
@@ -128,8 +128,9 @@ Age and guardians
 - **FR-110**: Every photo upload MUST state whether the photo shows a minor. A photo of a minor
   MUST also carry a confirmation that the uploader is the minor's parent or legal guardian, and
   the system MUST record when it was given.
-- **FR-111**: Photos of minors MUST be refused unless the operator has switched them on. They are
-  off by default, because legal advice is required before this reaches anyone but the owner.
+- **FR-111**: The operator MUST be able to refuse photos of minors without a new release, as a
+  switch that is on by default. The owner chose on 2026-11-08 to allow them from the start, without
+  waiting for legal advice.
 
 Daily limits
 - **FR-112**: A person MUST NOT exceed 10 script generations and 100 rendered panels per day. A
