@@ -125,6 +125,40 @@ describe('retention (spec 002 FR-117 – FR-124)', () => {
     expect(mails(x.email)).toHaveLength(0);
   });
 
+  it('still tidies old invitations in production without a real email service (FR-108)', async () => {
+    await t.db.query("INSERT INTO invites (id, email, token_hash, expires_at, revoked_at) VALUES (gen_random_uuid(), 'prodold@example.com', 'h-prodold', $1, $2)", [at(14), at(-31)]);
+    const r = await runRetention(deps('production'), NOW);
+    expect(r.skipped).toBe('no_email_service');
+    expect(r.invitesDeleted).toBeGreaterThanOrEqual(1);
+    expect((await t.db.query("SELECT 1 FROM invites WHERE email = 'prodold@example.com'")).rows).toHaveLength(0);
+  });
+
+  it('skips a project opened after the selection, before its turn (FR-120)', async () => {
+    const a = await idleProject(95);
+    const b = await idleProject(95);
+    await runRetention(deps(), NOW); // warns both
+    const storage = t.providers.storage;
+    const realDelete = storage.delete.bind(storage);
+    let first: string | null = null;
+    storage.delete = async (key: string) => {
+      await realDelete(key);
+      if (!first) {
+        first = key;
+        // The other project is "opened" by its owner, as loadOwnedProject does.
+        await t.db.query('UPDATE projects SET last_activity_at = now(), retention_warned_at = NULL WHERE id = $1', [key === a.photoKey ? b.p : a.p]);
+      }
+    };
+    try {
+      await runRetention(deps(), at(14));
+    } finally {
+      storage.delete = realDelete;
+    }
+    const [done, kept] = first === a.photoKey ? [a, b] : [b, a];
+    expect(await storage.get(done.photoKey)).toBeNull();
+    expect(await storage.get(kept.photoKey)).not.toBeNull();
+    expect((await row(kept.p)).warned).toBeNull();
+  });
+
   it('tidies invitations 30 days after they stop being usable (FR-108)', async () => {
     const insert = (email: string, revokedDaysAgo: number) =>
       t.db.query("INSERT INTO invites (id, email, token_hash, expires_at, revoked_at) VALUES (gen_random_uuid(), $1, $2, $3, $4)", [email, `h-${email}`, at(14), at(-revokedDaysAgo)]);

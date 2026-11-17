@@ -44,6 +44,14 @@ export async function runRetention(deps: RetentionDeps, now = new Date()): Promi
     log.info('retention is paused by its switch');
     return { ...result, skipped: 'paused' };
   }
+  // Tidy invitations 30 days after they stopped being usable (FR-108). Needs no email, so it runs
+  // whenever the switch is on, even when warnings and deletions cannot.
+  const { rows: gone } = await deps.db.query(
+    "DELETE FROM invites WHERE LEAST(COALESCE(used_at, 'infinity'), COALESCE(revoked_at, 'infinity'), expires_at) <= $1 RETURNING id",
+    [new Date(now.getTime() - RETENTION.inviteTidyDays * DAY)],
+  );
+  result.invitesDeleted = gone.length;
+
   if (deps.config.nodeEnv === 'production' && !deps.providers.email.real) {
     log.warn('retention is off: no email service is configured');
     return { ...result, skipped: 'no_email_service' };
@@ -73,26 +81,31 @@ export async function runRetention(deps: RetentionDeps, now = new Date()): Promi
   }
 
   // 2. Delete photos (and what derives from them) of projects idle 90 days and warned 14 days ago.
+  const deleteCutoff = new Date(now.getTime() - RETENTION.deleteAfterDays * DAY);
+  const noticeCutoff = new Date(now.getTime() - RETENTION.noticeDays * DAY);
   const { rows: photos } = await deps.db.query<{ id: string; project_id: string; character_id: string; storage_key: string }>(
     `SELECT ci.id, ci.project_id, ci.character_id, ci.storage_key FROM character_images ci JOIN projects p ON p.id = ci.project_id
      WHERE ci.kind = 'photo' AND p.last_activity_at <= $1 AND p.retention_warned_at <= $2
        AND NOT EXISTS (SELECT 1 FROM render_jobs j WHERE j.project_id = p.id AND j.status IN ('queued', 'running'))`,
-    [new Date(now.getTime() - RETENTION.deleteAfterDays * DAY), new Date(now.getTime() - RETENTION.noticeDays * DAY)],
+    [deleteCutoff, noticeCutoff],
   );
-  const cleared = new Set<string>();
-  for (const photo of photos) {
-    await deleteCharacterImage(deps, photo);
-    result.photosDeleted++;
-    cleared.add(photo.project_id);
+  const byProject = new Map<string, typeof photos>();
+  for (const photo of photos) byProject.set(photo.project_id, [...(byProject.get(photo.project_id) ?? []), photo]);
+  for (const [projectId, items] of byProject) {
+    // Re-checked right before deleting: opening the project or queuing a render since the
+    // selection above must win (FR-120, FR-121). Deletion cannot be undone.
+    const { rows: still } = await deps.db.query(
+      `SELECT 1 FROM projects p WHERE p.id = $1 AND p.last_activity_at <= $2 AND p.retention_warned_at <= $3
+         AND NOT EXISTS (SELECT 1 FROM render_jobs j WHERE j.project_id = p.id AND j.status IN ('queued', 'running'))`,
+      [projectId, deleteCutoff, noticeCutoff],
+    );
+    if (!still.length) continue;
+    for (const photo of items) {
+      await deleteCharacterImage(deps, photo);
+      result.photosDeleted++;
+    }
+    await deps.db.query('UPDATE projects SET retention_warned_at = NULL WHERE id = $1', [projectId]);
   }
-  if (cleared.size) await deps.db.query('UPDATE projects SET retention_warned_at = NULL WHERE id = ANY($1::uuid[])', [[...cleared]]);
-
-  // 3. Tidy invitations 30 days after they stopped being usable (FR-108).
-  const { rows: gone } = await deps.db.query(
-    "DELETE FROM invites WHERE LEAST(COALESCE(used_at, 'infinity'), COALESCE(revoked_at, 'infinity'), expires_at) <= $1 RETURNING id",
-    [new Date(now.getTime() - RETENTION.inviteTidyDays * DAY)],
-  );
-  result.invitesDeleted = gone.length;
 
   log.info('retention run', { ...result });
   return result;
