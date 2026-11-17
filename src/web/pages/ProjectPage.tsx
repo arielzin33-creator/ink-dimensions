@@ -37,8 +37,8 @@ export function ProjectPage({ id, step }: { id: string; step: string }) {
   const reload = useCallback(async () => {
     try {
       const next = (await api<{ project: ProjectDto }>('GET', `/api/projects/${id}`)).project;
-      // Only the first response carries the notice; keep it across the reloads that step actions trigger.
-      setProject((prev) => ({ ...next, photosWereDueOn: next.photosWereDueOn ?? prev?.photosWereDueOn ?? null }));
+      // Only the first response carries the notice; keep it across this project's reloads, never another's.
+      setProject((prev) => ({ ...next, photosWereDueOn: next.photosWereDueOn ?? (prev?.id === next.id ? prev.photosWereDueOn : null) }));
     } catch (err) {
       setError(errorMessage(err));
     }

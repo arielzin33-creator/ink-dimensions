@@ -20,7 +20,8 @@ owner's decisions of 2026-11-05.
 5. **Dependency advisory.** Dependabot could not fix the moderate `minimatch` advisory, because its
    update path downgrades `@eslint/js`. PR #5 pins the patched version with an override. Remove the
    override once ESLint moves to a patched range.
-6. **Release gate: real PostgreSQL.** Before the first release, run
-   `TEST_DATABASE_URL=postgres://<user>:<password>@127.0.0.1:5432/postgres npm test` once against a
-   real PostgreSQL. It covers SC-101, SC-102 and the single-administrator race, which are otherwise
-   proven only on PGlite (one connection at a time).
+6. **Release gate: real PostgreSQL. Done 2026-11-17.** `test/integration/pg.test.ts` passed 6 runs
+   out of 6 against PostgreSQL 18.6 (a throwaway Docker container). It covers SC-101, SC-102 and the
+   single-administrator race, which the rest of the suite proves only on PGlite (one connection at a
+   time). Run it again after changes to sign-up, invitations or the daily limits:
+   `TEST_DATABASE_URL=postgres://<user>:<password>@127.0.0.1:5432/postgres npx vitest run test/integration/pg.test.ts`.
