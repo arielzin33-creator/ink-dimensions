@@ -7,6 +7,7 @@ import type { ResolvedDeps } from '../app.js';
 import { requirePhotoPath, requireRendering } from '../flags.js';
 import { badRequest, HttpError, notFound, refused } from '../errors.js';
 import { json, type Router } from '../http.js';
+import { releaseUsage, reserveUsage } from '../usage.js';
 import { jobDto, panelTexts, type RenderJobRow, type RenderRunner } from '../render-runner.js';
 
 export const PANEL_IMAGE_CSP = "default-src 'none'; img-src data:; style-src 'unsafe-inline'; frame-ancestors 'none'";
@@ -37,10 +38,17 @@ export function registerRenderRoutes(router: Router, deps: ResolvedDeps, runner:
       [project.id],
     );
     if (activeJobs[0]) throw new HttpError(409, 'render_in_progress', 'A render is already in progress for this project.', { jobId: activeJobs[0].id });
-    const { rows: created } = await deps.db.query<RenderJobRow>(
-      'INSERT INTO render_jobs (id, project_id, user_id, panel_ids, request_id) VALUES ($1, $2, $3, $4::jsonb, $5) RETURNING *',
-      [randomUUID(), project.id, user.id, JSON.stringify(ids), ctx.reqId],
-    );
+    const day = await reserveUsage(deps.db, user.id, 'panels', ids.length);
+    let created: RenderJobRow[];
+    try {
+      ({ rows: created } = await deps.db.query<RenderJobRow>(
+        'INSERT INTO render_jobs (id, project_id, user_id, panel_ids, request_id, usage_day) VALUES ($1, $2, $3, $4::jsonb, $5, $6) RETURNING *',
+        [randomUUID(), project.id, user.id, JSON.stringify(ids), ctx.reqId, day],
+      ));
+    } catch (err) {
+      await releaseUsage(deps.db, user.id, 'panels', ids.length, day);
+      throw err;
+    }
     runner.kick();
     return json(202, { job: jobDto(created[0] as RenderJobRow) });
   });

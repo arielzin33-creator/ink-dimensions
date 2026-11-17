@@ -11,6 +11,8 @@ export const LIMITS = {
   characterDescriptionMax: 1000,
   imagesPerCharacter: 5,
   charactersPerProject: 12,
+  dailyScriptGenerations: 10,
+  dailyPanels: 100,
   pagesMax: 6,
   panelsPerPageMax: 6,
   dialoguePerPanelMax: 4,
