@@ -82,7 +82,17 @@ jobs:
           fi
           npm ci --ignore-scripts
           # Dependency audit outside the sandbox (needs the registry; runs no project code).
-          if npm audit --audit-level=high >/dev/null 2>&1; then echo "FACTORY_AUDIT_STATUS=pass" >> "$GITHUB_ENV"
+          # Any high or critical advisory fails, except those in `exempt`: advisories with no patched
+          # release, each recorded in docs/factory/DECISIONS.md. Remove an id as soon as a fix ships.
+          # Unreadable audit output (registry down, npm error) fails too.
+          npm audit --json > "$RUNNER_TEMP/audit.json" 2>/dev/null || true
+          if python3 -I -c 'import json,sys
+          exempt = {"GHSA-fc5q-39xc-vjpf"}
+          try: vulns = json.load(open(sys.argv[1]))["vulnerabilities"]
+          except Exception: sys.exit("audit: output unreadable")
+          found = {v["url"].rsplit("/", 1)[-1] for p in vulns.values() for v in p["via"] if isinstance(v, dict) and v.get("severity") in ("high", "critical")}
+          print("audit: blocking:", " ".join(sorted(found - exempt)) or "none", "| exempt and present:", " ".join(sorted(found & exempt)) or "none")
+          sys.exit(1 if found - exempt else 0)' "$RUNNER_TEMP/audit.json"; then echo "FACTORY_AUDIT_STATUS=pass" >> "$GITHUB_ENV"
           else echo "FACTORY_AUDIT_STATUS=fail" >> "$GITHUB_ENV"; fi
       - name: Gates (sandboxed; verdict from the trusted script's exit code)
         env:
