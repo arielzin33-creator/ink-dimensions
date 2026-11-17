@@ -189,3 +189,8 @@ must cite their run of evidence (charter §9).
   upload. This replaces the 2026-11-05 condition that legal advice comes first: the owner chose not to
   wait for it and accepts the risk. A switch, on by default, can refuse these uploads without a release.
 - **Spec 002's other proposals:** accepted as written.
+
+## 2026-11-17 — Spec 002 built
+
+- Spec 002 built: invitations with one administrator, UTC daily limits enforced by conditional upsert, self-declared age and guardian statements, retention gated on a real email service.
+- Open after the build: email vendor, GPU and ComfyUI server, legal advice on photos of minors, and replacing the sole-tester pilot (`docs/product/OPEN-ITEMS.md`, item 3).

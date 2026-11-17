@@ -5,8 +5,9 @@ owner's decisions of 2026-11-05.
 
 1. **Test gap: panel gutters.** Fixed by PR #6 once merged. That PR adds a visible test, which also
    makes eval `panel-layout-002` easier (see the PR).
-2. **Decided but not built.** FR-032, FR-033 and FR-034 are now drafted as
-   `specs/002-invites-limits-retention/`, waiting for approval. Building starts after that.
+2. **Built in spec 002.** FR-032 (invitations and daily limits), FR-033 (age and guardian
+   statements) and FR-034 (retention) are built under `specs/002-invites-limits-retention/` and
+   documented in the README. What remains open is item 3.
 3. **Conditions on the decisions.**
    - Legal advice on photos of minors is still recommended. The owner chose on 2026-11-08 not to wait
      for it, so spec 002 allows these uploads from the start, behind a switch that can turn them off.
