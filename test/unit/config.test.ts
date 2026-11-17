@@ -52,6 +52,14 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ ADMIN_BOOTSTRAP_CODE: 'short' })).toThrow(/ADMIN_BOOTSTRAP_CODE/);
     expect(loadConfig({ ADMIN_BOOTSTRAP_CODE: 'x'.repeat(32) }).adminBootstrapCode).toBe('x'.repeat(32));
   });
+
+  it('defaults email to the twin and names missing email settings', () => {
+    expect(loadConfig({}).email).toEqual({ provider: 'twin' });
+    expect(() => loadConfig({ EMAIL_PROVIDER: 'http' })).toThrow(/EMAIL_HTTP_URL is required/);
+    expect(() => loadConfig({ EMAIL_PROVIDER: 'http', EMAIL_HTTP_URL: 'https://mail.example' })).toThrow(/EMAIL_HTTP_API_KEY/);
+    expect(() => loadConfig({ EMAIL_PROVIDER: 'http', EMAIL_HTTP_URL: 'https://mail.example', EMAIL_HTTP_API_KEY: 'k' })).toThrow(/EMAIL_FROM/);
+    expect(() => loadConfig({ EMAIL_PROVIDER: 'http', EMAIL_HTTP_URL: 'https://mail.example', EMAIL_HTTP_API_KEY: 'k', EMAIL_FROM: 'a@b.c' })).toThrow(/APP_URL/);
+  });
 });
 
 describe('logger', () => {

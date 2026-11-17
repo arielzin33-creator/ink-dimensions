@@ -35,7 +35,11 @@ export interface Config {
   moderation: 'rules' | 'permissive';
   registrationOpen: boolean;
   adminBootstrapCode: string | undefined;
+  email: EmailConfig;
+  appUrl: string;
 }
+
+export type EmailConfig = { provider: 'twin' } | { provider: 'http'; url: string; apiKey: string; from: string; timeoutMs: number };
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'silent';
 type Env = Record<string, string | undefined>;
@@ -156,6 +160,15 @@ export function loadConfig(env: Env = process.env): Config {
   const adminBootstrapCode = str(env, 'ADMIN_BOOTSTRAP_CODE');
   if (adminBootstrapCode !== undefined && adminBootstrapCode.length < 32) throw new ConfigError('ADMIN_BOOTSTRAP_CODE must be at least 32 characters');
 
+  const emailProvider = oneOf(env, 'EMAIL_PROVIDER', ['twin', 'http'] as const, 'twin');
+  let email: EmailConfig = { provider: 'twin' };
+  let appUrl = str(env, 'APP_URL') ? url(env, 'APP_URL', '') : 'http://127.0.0.1:3000';
+  if (emailProvider === 'http') {
+    const why = 'when EMAIL_PROVIDER=http';
+    email = { provider: 'http', url: url(env, 'EMAIL_HTTP_URL', why), apiKey: required(env, 'EMAIL_HTTP_API_KEY', why), from: required(env, 'EMAIL_FROM', why), timeoutMs: int(env, 'EMAIL_TIMEOUT_MS', 15_000, 1_000, 120_000) };
+    appUrl = url(env, 'APP_URL', why);
+  }
+
   return {
     nodeEnv,
     host: str(env, 'HOST') ?? (production ? '0.0.0.0' : '127.0.0.1'),
@@ -176,5 +189,7 @@ export function loadConfig(env: Env = process.env): Config {
     moderation,
     registrationOpen,
     adminBootstrapCode,
+    email,
+    appUrl,
   };
 }
