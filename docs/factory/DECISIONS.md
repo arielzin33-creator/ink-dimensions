@@ -190,6 +190,20 @@ must cite their run of evidence (charter §9).
   wait for it and accepts the risk. A switch, on by default, can refuse these uploads without a release.
 - **Spec 002's other proposals:** accepted as written.
 
+## 2026-11-17 — Audit gate: exempt GHSA-fc5q-39xc-vjpf (picomatch ReDoS) until a fix ships
+
+- **Decision (owner):** the `audit` gate in `.github/workflows/factory-gates.yml` ignores this one
+  advisory. Any other high or critical advisory still fails it, and so does unreadable audit output.
+- **Loosening, with evidence:** PR #19's gates run (Actions run 44168228103) went red only on
+  `audit`, which reported 12 high entries. All 12 trace back to GHSA-fc5q-39xc-vjpf, a ReDoS in
+  `picomatch` reached through Vite, Vitest and typescript-eslint. The advisory lists every release up
+  to the latest (4.0.7) as vulnerable and gives no patched version, so neither an update nor an
+  override can fix it. `npm ls picomatch --omit=dev` is empty, and the Docker image prunes dev
+  dependencies, so the package is never in production. The dev tools that use it match only the
+  repository's own glob patterns, not user input.
+- **Remove when:** `picomatch` publishes a patched release. Then update the lockfile (or add an
+  override, as with `minimatch` in #5) and delete the id from `exempt` in the workflow.
+
 ## 2026-11-17 — Spec 002 built
 
 - Spec 002 built: invitations with one administrator, UTC daily limits enforced by conditional upsert, self-declared age and guardian statements, retention gated on a real email service.
