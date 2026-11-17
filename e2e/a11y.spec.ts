@@ -1,14 +1,5 @@
-import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
-import { createProject, pngFile, signUp } from './fixtures.js';
-
-const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
-
-async function scan(page: Page, name: string) {
-  const results = await new AxeBuilder({ page }).withTags(TAGS).analyze();
-  const summary = results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`);
-  expect(summary, `axe violations on ${name}`).toEqual([]);
-}
+import { expect, test } from '@playwright/test';
+import { createProject, pngFile, scan, signUp } from './fixtures.js';
 
 test('main pages have no WCAG 2.2 AA violations', async ({ page }) => {
   await page.goto('/signin');

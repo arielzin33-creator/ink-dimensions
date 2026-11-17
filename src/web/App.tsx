@@ -3,6 +3,7 @@ import { useEffect, type ReactNode } from 'react';
 import { AuthProvider, useAuth } from './auth.js';
 import { AccountPage } from './pages/AccountPage.js';
 import { AuthPage } from './pages/AuthPage.js';
+import { InvitesPage } from './pages/InvitesPage.js';
 import { NewProjectPage } from './pages/NewProjectPage.js';
 import { ProjectPage } from './pages/ProjectPage.js';
 import { ProjectsPage } from './pages/ProjectsPage.js';
@@ -23,6 +24,11 @@ function Header() {
               <li>
                 <Link to="/projects">Projects</Link>
               </li>
+              {user.isAdmin ? (
+                <li>
+                  <Link to="/admin/invites">Invitations</Link>
+                </li>
+              ) : null}
               <li>
                 <Link to="/account">Account</Link>
               </li>
@@ -66,6 +72,7 @@ function Routes() {
   if (path === '/' || path === '/projects') return <ProjectsPage />;
   if (path === '/projects/new') return <NewProjectPage />;
   if (path === '/account') return <AccountPage />;
+  if (path === '/admin/invites' && user.isAdmin) return <InvitesPage />;
   const withStep = matchPath('/projects/:id/:step', path);
   const plain = matchPath('/projects/:id', path);
   const params = withStep ?? plain;
