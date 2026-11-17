@@ -18,6 +18,12 @@
       "variants": { "on": true, "off": false },
       "defaultVariant": "on",
       "metadata": { "description": "Photos of people under 18, uploaded by their parent or legal guardian (spec 002 FR-111). Switch to \"off\" to refuse new photos of minors." }
+    },
+    "retention-enabled": {
+      "state": "ENABLED",
+      "variants": { "on": true, "off": false },
+      "defaultVariant": "on",
+      "metadata": { "description": "Automatic deletion of idle projects' photos (spec 002 FR-124). Switch to \"off\" to pause the retention check." }
     }
   }
 }
