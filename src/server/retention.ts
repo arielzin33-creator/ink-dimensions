@@ -24,6 +24,8 @@ export interface RetentionResult {
   skipped: 'paused' | 'no_email_service' | null;
   warnedOwners: number;
   failedOwners: number;
+  /** Projects or owners whose step failed unexpectedly (storage, database); retried on the next run. */
+  failed: number;
   photosDeleted: number;
   invitesDeleted: number;
 }
@@ -39,7 +41,7 @@ function warningText(appUrl: string, deleteOn: string, projects: number): string
 
 export async function runRetention(deps: RetentionDeps, now = new Date()): Promise<RetentionResult> {
   const log = deps.log.child({ component: 'retention' });
-  const result: RetentionResult = { skipped: null, warnedOwners: 0, failedOwners: 0, photosDeleted: 0, invitesDeleted: 0 };
+  const result: RetentionResult = { skipped: null, warnedOwners: 0, failedOwners: 0, failed: 0, photosDeleted: 0, invitesDeleted: 0 };
   if (!(await deps.flags.retentionEnabled())) {
     log.info('retention is paused by its switch');
     return { ...result, skipped: 'paused' };
@@ -76,8 +78,13 @@ export async function runRetention(deps: RetentionDeps, now = new Date()): Promi
       continue;
     }
     // last_activity_at re-checked: activity during the send keeps the project unwarned.
-    await deps.db.query('UPDATE projects SET retention_warned_at = $2 WHERE id = ANY($1::uuid[]) AND retention_warned_at IS NULL AND last_activity_at <= $3', [owner.ids, now, warnCutoff]);
-    result.warnedOwners++;
+    try {
+      await deps.db.query('UPDATE projects SET retention_warned_at = $2 WHERE id = ANY($1::uuid[]) AND retention_warned_at IS NULL AND last_activity_at <= $3', [owner.ids, now, warnCutoff]);
+      result.warnedOwners++;
+    } catch (err) {
+      result.failed++;
+      log.error('retention could not record a sent warning', errorFields(err));
+    }
   }
 
   // 2. Delete photos (and what derives from them) of projects idle 90 days and warned 14 days ago.
@@ -92,38 +99,48 @@ export async function runRetention(deps: RetentionDeps, now = new Date()): Promi
   const byProject = new Map<string, typeof photos>();
   for (const photo of photos) byProject.set(photo.project_id, [...(byProject.get(photo.project_id) ?? []), photo]);
   for (const [projectId, items] of byProject) {
-    // Re-checked right before deleting: opening the project or queuing a render since the
-    // selection above must win (FR-120, FR-121). Deletion cannot be undone.
-    const { rows: still } = await deps.db.query(
-      `SELECT 1 FROM projects p WHERE p.id = $1 AND p.last_activity_at <= $2 AND p.retention_warned_at <= $3
-         AND NOT EXISTS (SELECT 1 FROM render_jobs j WHERE j.project_id = p.id AND j.status IN ('queued', 'running'))`,
-      [projectId, deleteCutoff, noticeCutoff],
-    );
-    if (!still.length) continue;
-    for (const photo of items) {
-      await deleteCharacterImage(deps, photo);
-      result.photosDeleted++;
+    try {
+      // Re-checked right before deleting: opening the project or queuing a render since the
+      // selection above must win (FR-120, FR-121). Deletion cannot be undone.
+      const { rows: still } = await deps.db.query(
+        `SELECT 1 FROM projects p WHERE p.id = $1 AND p.last_activity_at <= $2 AND p.retention_warned_at <= $3
+           AND NOT EXISTS (SELECT 1 FROM render_jobs j WHERE j.project_id = p.id AND j.status IN ('queued', 'running'))`,
+        [projectId, deleteCutoff, noticeCutoff],
+      );
+      if (!still.length) continue;
+      for (const photo of items) {
+        await deleteCharacterImage(deps, photo);
+        result.photosDeleted++;
+      }
+      await deps.db.query('UPDATE projects SET retention_warned_at = NULL WHERE id = $1', [projectId]);
+    } catch (err) {
+      // One failing project must not block the others; it keeps its warning and is retried next run.
+      result.failed++;
+      log.error('retention could not delete the photos of a project; retrying on the next run', errorFields(err));
     }
-    await deps.db.query('UPDATE projects SET retention_warned_at = NULL WHERE id = $1', [projectId]);
   }
 
   log.info('retention run', { ...result });
   return result;
 }
 
-export function startRetention(deps: RetentionDeps, intervalMs: number = RETENTION.intervalMs): { stop(): void } {
-  let running = false;
+export function startRetention(deps: RetentionDeps, intervalMs: number = RETENTION.intervalMs): { stop(): Promise<void> } {
+  let current: Promise<void> | null = null;
   const tick = () => {
-    if (running) return;
-    running = true;
-    void runRetention(deps)
-      .catch((err: unknown) => deps.log.error('retention run failed', errorFields(err)))
+    if (current) return;
+    current = runRetention(deps)
+      .then(() => undefined, (err: unknown) => deps.log.error('retention run failed', errorFields(err)))
       .finally(() => {
-        running = false;
+        current = null;
       });
   };
   tick();
   const timer = setInterval(tick, intervalMs);
   timer.unref();
-  return { stop: () => clearInterval(timer) };
+  return {
+    stop: async () => {
+      clearInterval(timer);
+      await current;
+    },
+  };
 }

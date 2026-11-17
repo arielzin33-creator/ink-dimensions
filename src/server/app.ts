@@ -96,7 +96,7 @@ export function createApp(deps: AppDeps, opts: { fallback?: Fallback; autoRun?: 
 
   const handler = createRequestHandler({ router, log: deps.log, release: deps.config.release, onResponse: (status) => metrics.recordResponse(status), ...(opts.fallback ? { fallback: opts.fallback } : {}) });
   const stop = async () => {
-    retention?.stop();
+    await retention?.stop();
     await runner.stop();
   };
   return { router, runner, metrics, handler, stop };

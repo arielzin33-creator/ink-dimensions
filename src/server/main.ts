@@ -37,7 +37,7 @@ async function main(): Promise<void> {
     nodeEnv: config.nodeEnv,
     db: db.kind,
     migrationsApplied: migrations.applied,
-    providers: { llm: providers.llm.name, image: providers.image.name, storage: providers.storage.name, moderation: providers.moderation.name },
+    providers: { llm: providers.llm.name, image: providers.image.name, storage: providers.storage.name, moderation: providers.moderation.name, email: providers.email.name },
   });
 
   let fallback: Fallback;

@@ -158,7 +158,9 @@ export function loadConfig(env: Env = process.env): Config {
   const registrationOpen = bool(env, 'REGISTRATION_OPEN', false);
   if (production && registrationOpen) throw new ConfigError('REGISTRATION_OPEN=true is not allowed in production (spec 002 FR-107)');
   const adminBootstrapCode = str(env, 'ADMIN_BOOTSTRAP_CODE');
-  if (adminBootstrapCode !== undefined && adminBootstrapCode.length < 32) throw new ConfigError('ADMIN_BOOTSTRAP_CODE must be at least 32 characters');
+  if (adminBootstrapCode !== undefined && (adminBootstrapCode.length < 32 || adminBootstrapCode.length > 200)) {
+    throw new ConfigError('ADMIN_BOOTSTRAP_CODE must be 32 to 200 characters (the sign-up form accepts at most 200)');
+  }
 
   const emailProvider = oneOf(env, 'EMAIL_PROVIDER', ['twin', 'http'] as const, 'twin');
   let email: EmailConfig = { provider: 'twin' };

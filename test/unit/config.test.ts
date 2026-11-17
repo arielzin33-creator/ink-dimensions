@@ -51,6 +51,8 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ NODE_ENV: 'production', REGISTRATION_OPEN: 'true' })).toThrow(/REGISTRATION_OPEN/);
     expect(() => loadConfig({ ADMIN_BOOTSTRAP_CODE: 'short' })).toThrow(/ADMIN_BOOTSTRAP_CODE/);
     expect(loadConfig({ ADMIN_BOOTSTRAP_CODE: 'x'.repeat(32) }).adminBootstrapCode).toBe('x'.repeat(32));
+    expect(loadConfig({ ADMIN_BOOTSTRAP_CODE: 'x'.repeat(200) }).adminBootstrapCode).toBe('x'.repeat(200));
+    expect(() => loadConfig({ ADMIN_BOOTSTRAP_CODE: 'x'.repeat(201) })).toThrow(/200 characters/);
   });
 
   it('defaults email to the twin and names missing email settings', () => {

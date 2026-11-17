@@ -20,3 +20,7 @@ owner's decisions of 2026-11-05.
 5. **Dependency advisory.** Dependabot could not fix the moderate `minimatch` advisory, because its
    update path downgrades `@eslint/js`. PR #5 pins the patched version with an override. Remove the
    override once ESLint moves to a patched range.
+6. **Release gate: real PostgreSQL.** Before the first release, run
+   `TEST_DATABASE_URL=postgres://<user>:<password>@127.0.0.1:5432/postgres npm test` once against a
+   real PostgreSQL. It covers SC-101, SC-102 and the single-administrator race, which are otherwise
+   proven only on PGlite (one connection at a time).

@@ -35,6 +35,18 @@ describe('invitations (spec 002)', () => {
     expect(await accounts('second@example.com')).toBe(0);
   });
 
+  it('creates exactly one administrator when two sign-ups use the setup code at once (FR-106)', async () => {
+    const fresh = await startTestApp({ env: { REGISTRATION_OPEN: 'false', ADMIN_BOOTSTRAP_CODE: SETUP } }); // no administrator yet
+    try {
+      const rs = await Promise.all(['race1@example.com', 'race2@example.com'].map((e) => signUp(fresh.client(), e, SETUP)));
+      expect(rs.map((r) => r.status).sort()).toEqual([201, 403]);
+      expect(rs.find((r) => r.status === 403)!.body.error.code).toBe('invite_invalid');
+      expect((await fresh.db.query('SELECT 1 FROM users WHERE is_admin = true')).rows).toHaveLength(1);
+    } finally {
+      await fresh.close();
+    }
+  });
+
   it('refuses every invalid invitation with one message and creates no account (FR-101, FR-102, SC-101)', async () => {
     const used = await invite('used@example.com');
     expect((await signUp(t.client(), 'used@example.com', used)).status).toBe(201);

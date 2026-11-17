@@ -35,9 +35,22 @@ panels (labelled shapes, no generated imagery).
 Production-style run:
 
 ```bash
-npm run build && npm start      # serves dist/web and the API
-npm run db:migrate              # optional: migrations also run at start-up
+npm run build && NODE_ENV=production npm start   # serves dist/web and the API
+npm run db:migrate                                 # optional: migrations also run at start-up
 ```
+
+`npm start` alone runs as development: the production checks below do not apply, and with the twin
+email, photos are deleted 14 days after an unsent warning. With `NODE_ENV=production` the app refuses to start with `REGISTRATION_OPEN=true`,
+`MODERATION_PROVIDER=permissive` or `STORAGE_PROVIDER=memory`, and cookies are `Secure`, so serve it
+over HTTPS.
+
+First administrator:
+
+1. Set `ADMIN_BOOTSTRAP_CODE` (at least 32 characters) on the first run.
+2. Sign up with a NEW address and enter the code in the "Invitation code" field. On an install that
+   already has accounts, use a new address too: existing accounts cannot become administrator.
+3. Remove the variable after setup. While it is still set, it starts working again if the
+   administrator's account is deleted.
 
 Checks:
 
@@ -79,8 +92,8 @@ Only environment variables; every one is optional and documented in [`.env.examp
 | `MODERATION_PROVIDER` | `rules` | `rules`, or `permissive` (tests only; refused in production) |
 | `FLAGS_FILE` | `flags/flags.json` | Feature flags (OpenFeature, flagd JSON) |
 | `REGISTRATION_OPEN` | `false` | `true` lets anyone sign up without an invitation. For development and tests only; refused in production |
-| `ADMIN_BOOTSTRAP_CODE` | unset | At least 32 characters. The first sign-up that enters it as its invitation code becomes the administrator. It stops working once an administrator exists |
-| `EMAIL_PROVIDER` | `twin` | `twin` (no email is sent) or `http`. Retention stays off in production until `http` is set |
+| `ADMIN_BOOTSTRAP_CODE` | unset | 32 to 200 characters. The first sign-up that enters it as its invitation code becomes the administrator. It stops working once an administrator exists |
+| `EMAIL_PROVIDER` | `twin` | `twin` (no email is sent) or `http`. In production there are no warnings or photo deletions until `EMAIL_PROVIDER=http`; invitations are still tidied |
 | `EMAIL_HTTP_URL`, `EMAIL_HTTP_API_KEY` | – | Generic JSON email API (required with `EMAIL_PROVIDER=http`; see `src/providers/email/http.ts`) |
 | `EMAIL_FROM` | – | Sender address (required with `EMAIL_PROVIDER=http`) |
 | `EMAIL_TIMEOUT_MS` | `15000` | Per-email timeout |
@@ -195,6 +208,6 @@ Built per `specs/002-invites-limits-retention/` (owner decisions in `docs/produc
   idle for 76 days gets an email (when a real email service is configured) and a notice in the app.
   At 90 idle days, its photos and every image made from them are deleted, at least 14 days after
   that warning. Scripts and invented characters are kept. Opening a project counts as activity and
-  cancels a pending warning; the project list does not. **In production the check does nothing
-  until `EMAIL_PROVIDER=http` is configured, and it logs that it is off.** Invitations are removed
-  30 days after they stop being usable (used, revoked or expired).
+  cancels a pending warning; the project list does not. **In production there are no warnings or photo deletions
+  until `EMAIL_PROVIDER=http` is configured, and the run logs that they are off; invitations are still tidied.**
+  Invitations are removed 30 days after they stop being usable (used, revoked or expired).

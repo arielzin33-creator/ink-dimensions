@@ -159,6 +159,31 @@ describe('retention (spec 002 FR-117 – FR-124)', () => {
     expect((await row(kept.p)).warned).toBeNull();
   });
 
+  it('keeps going when one project fails to delete, and retries it next run (FR-121, NFR-105)', async () => {
+    const bad = await idleProject(95);
+    const good = await idleProject(95);
+    await runRetention(deps(), NOW); // warns both
+    const storage = t.providers.storage;
+    const realDelete = storage.delete.bind(storage);
+    storage.delete = async (key: string) => {
+      if (key === bad.photoKey) throw new Error('disk gone');
+      await realDelete(key);
+    };
+    let result;
+    try {
+      result = await runRetention(deps(), at(14));
+    } finally {
+      storage.delete = realDelete;
+    }
+    expect(result.failed).toBe(1);
+    expect(await storage.get(good.photoKey)).toBeNull();
+    expect((await row(good.p)).warned).toBeNull();
+    expect(await storage.get(bad.photoKey)).not.toBeNull();
+    expect((await row(bad.p)).warned).toBeInstanceOf(Date);
+    await runRetention(deps(), at(14));
+    expect(await storage.get(bad.photoKey)).toBeNull();
+  });
+
   it('tidies invitations 30 days after they stop being usable (FR-108)', async () => {
     const insert = (email: string, revokedDaysAgo: number) =>
       t.db.query("INSERT INTO invites (id, email, token_hash, expires_at, revoked_at) VALUES (gen_random_uuid(), $1, $2, $3, $4)", [email, `h-${email}`, at(14), at(-revokedDaysAgo)]);
