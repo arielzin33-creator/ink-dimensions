@@ -38,9 +38,11 @@ export interface ProjectSummaryDto {
   path: ProjectPath;
   stylePreset: StyleId;
   updatedAt: string;
+  photosDeleteOn: string | null;
 }
 
 export interface ProjectDto extends ProjectSummaryDto {
+  photosWereDueOn: string | null;
   plot: string;
   characters: CharacterDto[];
   createdAt: string;

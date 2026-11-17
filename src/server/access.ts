@@ -1,6 +1,7 @@
 // Per-user authorisation for project resources (FR-007). Every child resource is looked up
 // through a project that belongs to the signed-in user; foreign and missing both give 404.
 import type { Queryable } from './db.js';
+import { photosDeleteOn } from './dto.js';
 import { notFound } from './errors.js';
 import type { ProjectPath } from '../shared/schemas.js';
 import type { StyleId } from '../shared/styles.js';
@@ -16,6 +17,7 @@ export interface ProjectRow {
   updated_at: Date;
   last_activity_at: Date;
   retention_warned_at: Date | null;
+  photos_were_due_on?: string | null;
 }
 
 export interface CharacterRow {
@@ -52,7 +54,7 @@ export async function loadOwnedProject(db: Queryable, userId: string, projectId:
   // At most one write an hour, unless a warning is pending: new activity cancels it (FR-120).
   if (row.retention_warned_at || Date.now() - new Date(row.last_activity_at).getTime() > HOUR) {
     await db.query('UPDATE projects SET last_activity_at = now(), retention_warned_at = NULL WHERE id = $1', [row.id]);
-    return { ...row, last_activity_at: new Date(), retention_warned_at: null };
+    return { ...row, last_activity_at: new Date(), retention_warned_at: null, photos_were_due_on: photosDeleteOn(row) };
   }
   return row;
 }

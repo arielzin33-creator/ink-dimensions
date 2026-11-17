@@ -5,8 +5,17 @@ import type { Queryable } from './db.js';
 
 const iso = (d: Date | string | null) => (d === null ? null : new Date(d).toISOString());
 
+const DAY = 86_400_000;
+
+/** The later of idle + 90 days and warning + 14 days, as a UTC date; null when no warning is pending. */
+export function photosDeleteOn(p: Pick<ProjectRow, 'last_activity_at' | 'retention_warned_at'>): string | null {
+  if (!p.retention_warned_at) return null;
+  const t = Math.max(new Date(p.last_activity_at).getTime() + 90 * DAY, new Date(p.retention_warned_at).getTime() + 14 * DAY);
+  return new Date(t).toISOString().slice(0, 10);
+}
+
 export function projectSummary(p: ProjectRow): ProjectSummaryDto {
-  return { id: p.id, title: p.title, path: p.path, stylePreset: p.style_preset, updatedAt: iso(p.updated_at) as string };
+  return { id: p.id, title: p.title, path: p.path, stylePreset: p.style_preset, updatedAt: iso(p.updated_at) as string, photosDeleteOn: photosDeleteOn(p) };
 }
 
 export function imageDto(i: CharacterImageRow): CharacterImageDto {
@@ -26,5 +35,5 @@ export async function loadCharacters(db: Queryable, projectId: string): Promise<
 }
 
 export async function projectDto(db: Queryable, p: ProjectRow): Promise<ProjectDto> {
-  return { ...projectSummary(p), plot: p.plot, createdAt: iso(p.created_at) as string, characters: await loadCharacters(db, p.id) };
+  return { ...projectSummary(p), photosWereDueOn: p.photos_were_due_on ?? null, plot: p.plot, createdAt: iso(p.created_at) as string, characters: await loadCharacters(db, p.id) };
 }

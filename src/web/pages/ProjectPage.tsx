@@ -10,7 +10,7 @@ import { RenderStep } from '../project/RenderStep.js';
 import { ScriptStep } from '../project/ScriptStep.js';
 import { StoryStep } from '../project/StoryStep.js';
 import { Link, useRouter } from '../router.js';
-import { PATH_LABEL } from './ProjectsPage.js';
+import { PATH_LABEL, formatDay } from './ProjectsPage.js';
 
 export const STEPS = [
   { id: 'characters', label: 'Characters' },
@@ -73,6 +73,9 @@ export function ProjectPage({ id, step }: { id: string; step: string }) {
       <p className="muted">
         <span className="badge">{PATH_LABEL[project.path]}</span>
       </p>
+      {project.photosWereDueOn ? (
+        <p className="notice notice-ok">This project&apos;s photos were due to be deleted on {formatDay(project.photosWereDueOn)}. Opening it has kept them for another 90 days.</p>
+      ) : null}
       <nav aria-label="Project steps">
         <ol className="steps">
           {STEPS.map((s, i) => (
