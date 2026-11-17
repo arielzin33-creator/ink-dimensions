@@ -6,11 +6,12 @@ import { FlagdFileProvider } from '../providers/flags/flagd-file.js';
 import { HttpError } from './errors.js';
 import type { Logger } from './logger.js';
 
-export const FLAG_KEYS = { photoPath: 'photo-path-enabled', render: 'render-enabled' } as const;
+export const FLAG_KEYS = { photoPath: 'photo-path-enabled', render: 'render-enabled', minorPhotos: 'minor-photos-enabled' } as const;
 
 export interface FeatureFlags {
   photoPathEnabled(): Promise<boolean>;
   renderEnabled(): Promise<boolean>;
+  minorPhotosEnabled(): Promise<boolean>;
 }
 
 export function createFeatureFlags(opts: { file?: string; provider?: Provider; log?: Logger }): FeatureFlags {
@@ -24,6 +25,7 @@ export function createFeatureFlags(opts: { file?: string; provider?: Provider; l
   return {
     photoPathEnabled: () => client.getBooleanValue(FLAG_KEYS.photoPath, true),
     renderEnabled: () => client.getBooleanValue(FLAG_KEYS.render, true),
+    minorPhotosEnabled: () => client.getBooleanValue(FLAG_KEYS.minorPhotos, true),
   };
 }
 

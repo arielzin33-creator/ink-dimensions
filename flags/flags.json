@@ -12,6 +12,12 @@
       "variants": { "on": true, "off": false },
       "defaultVariant": "on",
       "metadata": { "description": "Panel rendering through the image provider. Switch to \"off\" to stop new render jobs (for example to cap hosted provider costs)." }
+    },
+    "minor-photos-enabled": {
+      "state": "ENABLED",
+      "variants": { "on": true, "off": false },
+      "defaultVariant": "on",
+      "metadata": { "description": "Photos of people under 18, uploaded by their parent or legal guardian (spec 002 FR-111). Switch to \"off\" to refuse new photos of minors." }
     }
   }
 }

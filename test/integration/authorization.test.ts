@@ -16,7 +16,7 @@ beforeAll(async () => {
   await bob.signUp('bob@example.com');
   a.project = (await alice.post('/api/projects', { title: 'Alice family', path: 'photo' })).body.project.id;
   await alice.patch(`/api/projects/${a.project}`, { plot: 'Alice and Gran bake bread.' });
-  const ch = (await alice.post(`/api/projects/${a.project}/characters`, { name: 'Gran', image: pngUpload(), consent: true })).body.character;
+  const ch = (await alice.post(`/api/projects/${a.project}/characters`, { name: 'Gran', image: pngUpload(), consent: true, subject: 'adult' })).body.character;
   a.character = ch.id;
   a.image = ch.images[0].id;
   const script = (await alice.post(`/api/projects/${a.project}/script/generate`, { pages: 1 })).body;
@@ -46,7 +46,7 @@ describe('per-user authorisation', () => {
     ['POST', `/api/projects/${a.project}/characters`, { name: 'Intruder' }],
     ['PATCH', `/api/projects/${a.project}/characters/${a.character}`, { name: 'x' }],
     ['DELETE', `/api/projects/${a.project}/characters/${a.character}`],
-    ['POST', `/api/projects/${a.project}/characters/${a.character}/images`, { kind: 'photo', consent: true, ...pngUpload() }],
+    ['POST', `/api/projects/${a.project}/characters/${a.character}/images`, { kind: 'photo', consent: true, subject: 'adult', ...pngUpload() }],
     ['GET', `/api/projects/${a.project}/characters/${a.character}/images/${a.image}`],
     ['DELETE', `/api/projects/${a.project}/characters/${a.character}/images/${a.image}`],
     ['POST', `/api/projects/${a.project}/script/generate`, { pages: 1 }],
@@ -77,11 +77,11 @@ describe('per-user authorisation', () => {
 
   it('does not let another user attach or reach the owner’s characters, images or jobs through their own project', async () => {
     const mine = (await bob.post('/api/projects', { title: 'Bob', path: 'photo' })).body.project.id;
-    expect((await bob.post(`/api/projects/${mine}/characters/${a.character}/images`, { kind: 'photo', consent: true, ...pngUpload() })).status).toBe(404);
+    expect((await bob.post(`/api/projects/${mine}/characters/${a.character}/images`, { kind: 'photo', consent: true, subject: 'adult', ...pngUpload() })).status).toBe(404);
     expect((await bob.get(`/api/projects/${mine}/characters/${a.character}/images/${a.image}`)).status).toBe(404);
     expect((await bob.get(`/api/projects/${mine}/render-jobs/${a.job}`)).status).toBe(404);
     expect((await bob.get(`/api/projects/${mine}/panels/${a.panel}/image`)).status).toBe(404);
-    await bob.post(`/api/projects/${mine}/characters`, { name: 'Gran', image: pngUpload(), consent: true });
+    await bob.post(`/api/projects/${mine}/characters`, { name: 'Gran', image: pngUpload(), consent: true, subject: 'adult' });
     await bob.patch(`/api/projects/${mine}`, { plot: 'Bob visits.' });
     await bob.post(`/api/projects/${mine}/script/generate`, { pages: 1 });
     expect((await bob.post(`/api/projects/${mine}/render`, { panelIds: [a.panel] })).status).toBe(400);

@@ -28,8 +28,13 @@ test('real photos: consent is required, a photo uploads, and deleting it removes
   expect(direct.status()).toBe(400);
   expect((await direct.json()).error.code).toBe('consent_required');
 
-  // With consent: stored and shown.
+  // Consent but no statement about who is in the photo: refused in the browser.
   await card.getByLabel("I confirm I have this person's permission to use their photo in this comic.").check();
+  await card.getByRole('button', { name: 'Upload photo' }).click();
+  await expect(card.getByRole('alert').filter({ hasText: /./ })).toHaveText('Say whether this photo shows someone under 18.');
+  await card.getByRole('radio', { name: 'Only people aged 18 or over' }).check();
+
+  // With both statements: stored and shown.
   await card.getByRole('button', { name: 'Upload photo' }).click();
   await expect(card.getByRole('status').filter({ hasText: /./ })).toHaveText('Added photo for Grandma.');
   const thumb = card.getByRole('img', { name: 'Photo 1 of Grandma' });

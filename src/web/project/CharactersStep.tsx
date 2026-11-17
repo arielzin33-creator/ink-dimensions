@@ -19,10 +19,43 @@ function ConsentBox({ checked, onChange }: { checked: boolean; onChange: (v: boo
   );
 }
 
+type Subject = 'adult' | 'minor' | '';
+
+function SubjectFields({ subject, onSubject, guardian, onGuardian }: { subject: Subject; onSubject: (s: Subject) => void; guardian: boolean; onGuardian: (v: boolean) => void }) {
+  const name = useId();
+  return (
+    <fieldset className="consent">
+      <legend>Who is in this photo?</legend>
+      <label className="check">
+        <input type="radio" name={name} value="adult" checked={subject === 'adult'} onChange={() => onSubject('adult')} />
+        <span>Only people aged 18 or over</span>
+      </label>
+      <label className="check">
+        <input type="radio" name={name} value="minor" checked={subject === 'minor'} onChange={() => onSubject('minor')} />
+        <span>Someone under 18</span>
+      </label>
+      {subject === 'minor' ? (
+        <label className="check">
+          <input type="checkbox" checked={guardian} onChange={(e) => onGuardian(e.target.checked)} />
+          <span>I am this child&apos;s parent or legal guardian.</span>
+        </label>
+      ) : null}
+    </fieldset>
+  );
+}
+
+function photoStatementError(subject: Subject, guardian: boolean): string | null {
+  if (!subject) return 'Say whether this photo shows someone under 18.';
+  if (subject === 'minor' && !guardian) return "Confirm that you are this child's parent or legal guardian.";
+  return null;
+}
+
 function AddImageForm({ projectId, character, photo, onDone }: { projectId: string; character: CharacterDto; photo: boolean; onDone: () => Promise<void> }) {
   const id = useId();
   const [file, setFile] = useState<File | null>(null);
   const [consent, setConsent] = useState(false);
+  const [subject, setSubject] = useState<Subject>('');
+  const [guardian, setGuardian] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const noun = photo ? 'photo' : 'reference art';
@@ -33,11 +66,15 @@ function AddImageForm({ projectId, character, photo, onDone }: { projectId: stri
     setStatus(null);
     if (!file) return setError(`Choose a ${noun} file first.`);
     if (photo && !consent) return setError('Confirm that you have permission before uploading a photo.');
+    const statement = photo ? photoStatementError(subject, guardian) : null;
+    if (statement) return setError(statement);
     try {
       const image = await readImageFile(file);
-      await api('POST', `/api/projects/${projectId}/characters/${character.id}/images`, { kind: photo ? 'photo' : 'reference', consent: photo ? consent : undefined, ...image });
+      await api('POST', `/api/projects/${projectId}/characters/${character.id}/images`, { kind: photo ? 'photo' : 'reference', consent: photo ? consent : undefined, subject: photo ? subject || undefined : undefined, guardianConfirmed: photo && subject === 'minor' ? guardian : undefined, ...image });
       setFile(null);
       setConsent(false);
+      setSubject('');
+      setGuardian(false);
       (e.target as HTMLFormElement).reset();
       setStatus(`Added ${noun} for ${character.name}.`);
       await onDone();
@@ -55,7 +92,7 @@ function AddImageForm({ projectId, character, photo, onDone }: { projectId: stri
         </p>
         <input id={`${id}-file`} type="file" accept="image/png,image/jpeg,image/webp" aria-describedby={`${id}-hint`} onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
       </div>
-      {photo ? <ConsentBox checked={consent} onChange={setConsent} /> : null}
+      {photo ? <><ConsentBox checked={consent} onChange={setConsent} /><SubjectFields subject={subject} onSubject={setSubject} guardian={guardian} onGuardian={setGuardian} /></> : null}
       <Notice error={error} status={status} />
       <button type="submit" className="button button-secondary button-small">
         Upload {noun}
@@ -126,6 +163,8 @@ export function CharactersStep({ project, reload, goTo }: StepProps) {
   const [description, setDescription] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [consent, setConsent] = useState(false);
+  const [subject, setSubject] = useState<Subject>('');
+  const [guardian, setGuardian] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const fileId = useId();
@@ -137,13 +176,17 @@ export function CharactersStep({ project, reload, goTo }: StepProps) {
     if (!name.trim()) return setError('Give the character a name.');
     if (!photo && !description.trim() && !file) return setError('Describe the character, add reference art, or both.');
     if (photo && file && !consent) return setError('Confirm that you have permission before uploading a photo.');
+    const statement = photo && file ? photoStatementError(subject, guardian) : null;
+    if (statement) return setError(statement);
     try {
       const image = file ? await readImageFile(file) : undefined;
-      await api('POST', `/api/projects/${project.id}/characters`, { name, description, ...(image ? { image, consent: photo ? consent : undefined } : {}) });
+      await api('POST', `/api/projects/${project.id}/characters`, { name, description, ...(image ? { image, consent: photo ? consent : undefined, subject: photo ? subject || undefined : undefined, guardianConfirmed: photo && subject === 'minor' ? guardian : undefined } : {}) });
       setName('');
       setDescription('');
       setFile(null);
       setConsent(false);
+      setSubject('');
+      setGuardian(false);
       (e.target as HTMLFormElement).reset();
       setStatus(`Added ${name}.`);
       await reload();
@@ -192,7 +235,7 @@ export function CharactersStep({ project, reload, goTo }: StepProps) {
           </p>
           <input id={fileId} type="file" accept="image/png,image/jpeg,image/webp" aria-describedby={`${fileId}-hint`} onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
         </div>
-        {photo ? <ConsentBox checked={consent} onChange={setConsent} /> : null}
+        {photo ? <><ConsentBox checked={consent} onChange={setConsent} /><SubjectFields subject={subject} onSubject={setSubject} guardian={guardian} onGuardian={setGuardian} /></> : null}
         <Notice error={error} status={status} />
         <button type="submit" className="button">
           Add character

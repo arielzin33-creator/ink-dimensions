@@ -31,8 +31,8 @@ async function fakeRender(projectId: string, characterIds: string[]): Promise<{ 
 
 async function setup() {
   const project = (await c.post('/api/projects', { title: 'Family', path: 'photo' })).body.project.id as string;
-  const gran = (await c.post(`/api/projects/${project}/characters`, { name: 'Gran', image: pngUpload(), consent: true })).body.character;
-  const dad = (await c.post(`/api/projects/${project}/characters`, { name: 'Dad', image: pngUpload(), consent: true })).body.character;
+  const gran = (await c.post(`/api/projects/${project}/characters`, { name: 'Gran', image: pngUpload(), consent: true, subject: 'adult' })).body.character;
+  const dad = (await c.post(`/api/projects/${project}/characters`, { name: 'Dad', image: pngUpload(), consent: true, subject: 'adult' })).body.character;
   return { project, gran, dad };
 }
 

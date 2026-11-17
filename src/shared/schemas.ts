@@ -78,6 +78,8 @@ export const imageUploadSchema = z.object({
   contentType: z.enum(IMAGE_TYPES),
   dataBase64: z.string().min(1).regex(/^[A-Za-z0-9+/]+={0,2}$/, 'must be base64'),
   consent: z.boolean().optional(),
+  subject: z.enum(['adult', 'minor']).optional(),
+  guardianConfirmed: z.boolean().optional(),
 });
 
 export const dialogueLineSchema = z.object({

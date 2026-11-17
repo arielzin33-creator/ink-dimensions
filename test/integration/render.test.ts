@@ -33,7 +33,7 @@ async function projectWithScript(path: 'invented' | 'photo' = 'invented') {
   const id = (await c.post('/api/projects', { title: 'Render me', path })).body.project.id as string;
   await c.patch(`/api/projects/${id}`, { plot: 'Mo finds a clue. Ada helps.', stylePreset: 'line-art' });
   if (path === 'photo') {
-    await c.post(`/api/projects/${id}/characters`, { name: 'Mo', image: pngUpload(), consent: true });
+    await c.post(`/api/projects/${id}/characters`, { name: 'Mo', image: pngUpload(), consent: true, subject: 'adult' });
   } else {
     await c.post(`/api/projects/${id}/characters`, { name: 'Mo', description: 'a grey cat', image: pngUpload() });
     await c.post(`/api/projects/${id}/characters`, { name: 'Ada', description: 'a curious girl' });

@@ -31,7 +31,7 @@ describe('photo path characters', () => {
 
   it('accepts a photo with consent, records the consent time and serves it privately', async () => {
     const ch = (await c.post(`/api/projects/${photoProject}/characters`, { name: 'Dad' })).body.character;
-    const r = await c.post(`/api/projects/${photoProject}/characters/${ch.id}/images`, { kind: 'photo', ...pngUpload({ consent: true }) });
+    const r = await c.post(`/api/projects/${photoProject}/characters/${ch.id}/images`, { kind: 'photo', ...pngUpload({ consent: true, subject: 'adult' }) });
     expect(r.status).toBe(201);
     expect(r.body.image.consentAt).toMatch(/^\d{4}-/);
     const img = await c.get(`/api/projects/${photoProject}/characters/${ch.id}/images/${r.body.image.id}`);
@@ -42,7 +42,7 @@ describe('photo path characters', () => {
   });
 
   it('accepts a photo with consent when creating the character', async () => {
-    const r = await c.post(`/api/projects/${photoProject}/characters`, { name: 'Sis', image: pngUpload(), consent: true });
+    const r = await c.post(`/api/projects/${photoProject}/characters`, { name: 'Sis', image: pngUpload(), consent: true, subject: 'adult' });
     expect(r.status).toBe(201);
     expect(r.body.character.images[0].kind).toBe('photo');
     const refused = await c.post(`/api/projects/${photoProject}/characters`, { name: 'Bro', image: pngUpload() });
@@ -77,7 +77,7 @@ describe('invented path characters', () => {
 
   it('refuses photos on the invented path', async () => {
     const ch = (await c.post(`/api/projects/${inventedProject}/characters`, { name: 'Ada', description: 'a girl' })).body.character;
-    const r = await c.post(`/api/projects/${inventedProject}/characters/${ch.id}/images`, { kind: 'photo', ...pngUpload({ consent: true }) });
+    const r = await c.post(`/api/projects/${inventedProject}/characters/${ch.id}/images`, { kind: 'photo', ...pngUpload({ consent: true, subject: 'adult' }) });
     expect(r.status).toBe(400);
   });
 

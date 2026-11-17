@@ -20,6 +20,7 @@ test('main pages have no WCAG 2.2 AA violations', async ({ page }) => {
   await page.getByLabel('Name', { exact: true }).fill('Ada');
   await page.getByLabel('Photo', { exact: true }).setInputFiles(pngFile());
   await page.getByLabel("I confirm I have this person's permission to use their photo in this comic.").check();
+  await page.getByRole('radio', { name: 'Only people aged 18 or over' }).check();
   await page.getByRole('button', { name: 'Add character' }).click();
   await expect(page.getByRole('img', { name: 'Photo 1 of Ada' })).toBeVisible();
   await scan(page, 'characters (photo path)');

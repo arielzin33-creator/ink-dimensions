@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { FeatureFlags } from '../../src/server/flags.js';
+import { createFeatureFlags, type FeatureFlags } from '../../src/server/flags.js';
 import { startTestApp, type Client, type TestApp } from '../helpers/app.js';
 import { pngUpload } from '../helpers/images.js';
 
 const state = { photo: true, render: true };
-const flags: FeatureFlags = { photoPathEnabled: async () => state.photo, renderEnabled: async () => state.render };
+const flags: FeatureFlags = { ...createFeatureFlags({}), photoPathEnabled: async () => state.photo, renderEnabled: async () => state.render };
 let t: TestApp;
 let c: Client;
 let photoProject: string;
@@ -17,7 +17,7 @@ beforeAll(async () => {
   await c.signUp();
   photoProject = (await c.post('/api/projects', { title: 'Family', path: 'photo' })).body.project.id;
   await c.patch(`/api/projects/${photoProject}`, { plot: 'Gran plants tulips.' });
-  characterId = (await c.post(`/api/projects/${photoProject}/characters`, { name: 'Gran', image: pngUpload(), consent: true })).body.character.id;
+  characterId = (await c.post(`/api/projects/${photoProject}/characters`, { name: 'Gran', image: pngUpload(), consent: true, subject: 'adult' })).body.character.id;
   await c.post(`/api/projects/${photoProject}/script/generate`, { pages: 1 });
   inventedProject = (await c.post('/api/projects', { title: 'Cats', path: 'invented' })).body.project.id;
   await c.patch(`/api/projects/${inventedProject}`, { plot: 'Mo naps.' });
@@ -39,8 +39,8 @@ describe('feature flags', () => {
       const create = await c.post('/api/projects', { title: 'New family', path: 'photo' });
       expect(create.status).toBe(403);
       expect(create.body.error.code).toBe('feature_disabled');
-      expect((await c.post(`/api/projects/${photoProject}/characters/${characterId}/images`, { kind: 'photo', consent: true, ...pngUpload() })).status).toBe(403);
-      expect((await c.post(`/api/projects/${photoProject}/characters`, { name: 'Dad', image: pngUpload(), consent: true })).status).toBe(403);
+      expect((await c.post(`/api/projects/${photoProject}/characters/${characterId}/images`, { kind: 'photo', consent: true, subject: 'adult', ...pngUpload() })).status).toBe(403);
+      expect((await c.post(`/api/projects/${photoProject}/characters`, { name: 'Dad', image: pngUpload(), consent: true, subject: 'adult' })).status).toBe(403);
       expect((await c.post(`/api/projects/${photoProject}/script/generate`, { pages: 1 })).status).toBe(403);
       expect((await c.post(`/api/projects/${photoProject}/render`, {})).status).toBe(403);
       // Reading, exporting and deleting still work.
