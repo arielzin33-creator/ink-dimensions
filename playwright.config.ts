@@ -35,6 +35,7 @@ export default defineConfig({
       MODERATION_PROVIDER: 'rules',
       LOG_LEVEL: 'warn',
       RELEASE: 'e2e',
+      REGISTRATION_OPEN: 'true',
     },
   },
 });

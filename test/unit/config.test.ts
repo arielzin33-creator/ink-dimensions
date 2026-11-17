@@ -44,6 +44,14 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ NODE_ENV: 'production', STORAGE_PROVIDER: 'memory' })).toThrow(ConfigError);
     expect(loadConfig({ NODE_ENV: 'production' }).cookieSecure).toBe(true);
   });
+
+  it('keeps registration closed by default and refuses open registration in production (FR-107)', () => {
+    expect(loadConfig({}).registrationOpen).toBe(false);
+    expect(loadConfig({ REGISTRATION_OPEN: 'true' }).registrationOpen).toBe(true);
+    expect(() => loadConfig({ NODE_ENV: 'production', REGISTRATION_OPEN: 'true' })).toThrow(/REGISTRATION_OPEN/);
+    expect(() => loadConfig({ ADMIN_BOOTSTRAP_CODE: 'short' })).toThrow(/ADMIN_BOOTSTRAP_CODE/);
+    expect(loadConfig({ ADMIN_BOOTSTRAP_CODE: 'x'.repeat(32) }).adminBootstrapCode).toBe('x'.repeat(32));
+  });
 });
 
 describe('logger', () => {

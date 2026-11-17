@@ -9,6 +9,7 @@ import { json, noContent, type Router } from '../server/http.js';
 import { deleteAccountSchema, signInSchema, signUpSchema } from '../shared/schemas.js';
 import { clearSessionCookie, readSessionToken, serializeSessionCookie } from './cookies.js';
 import { requireUser } from './guard.js';
+import { claimInvite, hasLiveInvite, inviteInvalid, isSetupCode, recordInviteUser } from './invites.js';
 import { dummyPasswordHash, hashPassword, verifyPassword } from './password.js';
 import { createRateLimiter, SIGN_IN_LIMIT, type RateLimiter } from './rate-limit.js';
 import { createSession, deleteExpiredSessions, deleteSession } from './sessions.js';
@@ -17,6 +18,8 @@ export interface AuthDeps {
   db: Db;
   storage: StorageProvider;
   cookieSecure: boolean;
+  registrationOpen: boolean;
+  adminBootstrapCode: string | undefined;
   limiter?: RateLimiter;
 }
 
@@ -27,25 +30,36 @@ export function registerAuthRoutes(router: Router, deps: AuthDeps): void {
   const guardDeps = { db: deps.db, cookieSecure: deps.cookieSecure };
 
   router.post('/api/auth/signup', async (ctx) => {
-    const { email, password } = await ctx.body(signUpSchema);
+    const { email, password, invite } = await ctx.body(signUpSchema);
+    const admin = await isSetupCode(deps.db, deps.adminBootstrapCode, invite);
+    const viaInvite = !admin && !deps.registrationOpen;
+    if (viaInvite && !(invite && (await hasLiveInvite(deps.db, invite, email)))) throw inviteInvalid();
     const id = randomUUID();
     const hash = await hashPassword(password);
     try {
-      await deps.db.query('INSERT INTO users (id, email, password_hash) VALUES ($1, $2, $3)', [id, email, hash]);
+      await deps.db.transaction(async (tx) => {
+        if (viaInvite && !(await claimInvite(tx, invite as string, email))) throw inviteInvalid();
+        await tx.query('INSERT INTO users (id, email, password_hash, is_admin, age_confirmed_at) VALUES ($1, $2, $3, $4, now())', [id, email, hash, admin]);
+        if (viaInvite) await recordInviteUser(tx, invite as string, id);
+      });
     } catch (err) {
+      if (err instanceof HttpError) throw err;
+      // Two simultaneous sign-ups with the setup code: the second loses on the single-admin index.
+      if (/users_single_admin/.test(String((err as Error).message))) throw inviteInvalid();
       if ((err as { code?: string }).code === '23505') throw conflict('An account with this email already exists. Sign in instead.');
       throw err;
     }
     ctx.userId = id;
+    if (admin) ctx.log.info('administrator created with the setup code');
     const token = await createSession(deps.db, id);
-    return json(201, { user: { id, email } }, { 'set-cookie': serializeSessionCookie(token, deps.cookieSecure) });
+    return json(201, { user: { id, email, isAdmin: admin } }, { 'set-cookie': serializeSessionCookie(token, deps.cookieSecure) });
   });
 
   router.post('/api/auth/login', async (ctx) => {
     const { email, password } = await ctx.body(signInSchema);
     if (limiter.isLimited(email)) throw rateLimited('Too many failed sign-ins. Try again in 15 minutes.');
-    const { rows } = await deps.db.query<{ id: string; email: string; password_hash: string }>(
-      'SELECT id, email, password_hash FROM users WHERE lower(email) = $1',
+    const { rows } = await deps.db.query<{ id: string; email: string; password_hash: string; is_admin: boolean }>(
+      'SELECT id, email, password_hash, is_admin FROM users WHERE lower(email) = $1',
       [email],
     );
     const user = rows[0];
@@ -58,7 +72,7 @@ export function registerAuthRoutes(router: Router, deps: AuthDeps): void {
     ctx.userId = user.id;
     await deleteExpiredSessions(deps.db);
     const token = await createSession(deps.db, user.id);
-    return json(200, { user: { id: user.id, email: user.email } }, { 'set-cookie': serializeSessionCookie(token, deps.cookieSecure) });
+    return json(200, { user: { id: user.id, email: user.email, isAdmin: user.is_admin } }, { 'set-cookie': serializeSessionCookie(token, deps.cookieSecure) });
   });
 
   router.post('/api/auth/logout', async (ctx) => {

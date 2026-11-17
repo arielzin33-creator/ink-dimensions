@@ -5,6 +5,15 @@ import type { StyleId } from './styles.js';
 export interface UserDto {
   id: string;
   email: string;
+  isAdmin: boolean;
+}
+
+export interface InviteDto {
+  id: string;
+  email: string;
+  status: 'live' | 'used' | 'expired' | 'revoked';
+  createdAt: string;
+  expiresAt: string;
 }
 
 export interface CharacterImageDto {

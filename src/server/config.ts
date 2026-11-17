@@ -33,6 +33,8 @@ export interface Config {
   llm: LlmConfig;
   image: ImageConfig;
   moderation: 'rules' | 'permissive';
+  registrationOpen: boolean;
+  adminBootstrapCode: string | undefined;
 }
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'silent';
@@ -149,6 +151,11 @@ export function loadConfig(env: Env = process.env): Config {
     throw new ConfigError('STORAGE_PROVIDER=memory is not allowed in production');
   }
 
+  const registrationOpen = bool(env, 'REGISTRATION_OPEN', false);
+  if (production && registrationOpen) throw new ConfigError('REGISTRATION_OPEN=true is not allowed in production (spec 002 FR-107)');
+  const adminBootstrapCode = str(env, 'ADMIN_BOOTSTRAP_CODE');
+  if (adminBootstrapCode !== undefined && adminBootstrapCode.length < 32) throw new ConfigError('ADMIN_BOOTSTRAP_CODE must be at least 32 characters');
+
   return {
     nodeEnv,
     host: str(env, 'HOST') ?? (production ? '0.0.0.0' : '127.0.0.1'),
@@ -167,5 +174,7 @@ export function loadConfig(env: Env = process.env): Config {
     llm,
     image,
     moderation,
+    registrationOpen,
+    adminBootstrapCode,
   };
 }

@@ -1,6 +1,6 @@
 // Session guard (load-bearing): every project route calls requireUser first.
 import type { Db } from '../server/db.js';
-import { unauthenticated } from '../server/errors.js';
+import { notFound, unauthenticated } from '../server/errors.js';
 import type { Ctx } from '../server/http.js';
 import { readSessionToken } from './cookies.js';
 import { findSessionUser, type SessionUser } from './sessions.js';
@@ -20,5 +20,12 @@ export async function currentUser(ctx: Ctx, deps: GuardDeps): Promise<SessionUse
 export async function requireUser(ctx: Ctx, deps: GuardDeps): Promise<SessionUser> {
   const user = await currentUser(ctx, deps);
   if (!user) throw unauthenticated();
+  return user;
+}
+
+/** Administrator routes answer 404 to everyone else, exactly like a route that does not exist (FR-104). */
+export async function requireAdmin(ctx: Ctx, deps: GuardDeps): Promise<SessionUser> {
+  const user = await currentUser(ctx, deps);
+  if (!user?.isAdmin) throw notFound('Route');
   return user;
 }

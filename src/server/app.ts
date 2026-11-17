@@ -1,5 +1,6 @@
 // Application wiring: dependencies in, request handler out. Tests build it with twins.
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { registerInviteRoutes } from '../auth/invites.js';
 import { registerAuthRoutes } from '../auth/routes.js';
 import type { Providers } from '../providers/index.js';
 import type { Config } from './config.js';
@@ -82,7 +83,8 @@ export function createApp(deps: AppDeps, opts: { fallback?: Fallback; autoRun?: 
 
   router.get('/api/features', async () => json(200, { photoPathEnabled: await flags.photoPathEnabled(), renderEnabled: await flags.renderEnabled() }));
 
-  registerAuthRoutes(router, { db: deps.db, storage: deps.providers.storage, cookieSecure: deps.config.cookieSecure });
+  registerAuthRoutes(router, { db: deps.db, storage: deps.providers.storage, cookieSecure: deps.config.cookieSecure, registrationOpen: deps.config.registrationOpen, adminBootstrapCode: deps.config.adminBootstrapCode });
+  registerInviteRoutes(router, { db: deps.db, cookieSecure: deps.config.cookieSecure });
   registerProjectRoutes(router, full);
   registerCharacterRoutes(router, full);
   registerScriptRoutes(router, full);

@@ -34,7 +34,13 @@ export const emailSchema = z
   .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'must be an email address');
 export const passwordSchema = z.string().min(LIMITS.passwordMin, `must be at least ${LIMITS.passwordMin} characters`).max(LIMITS.passwordMax);
 
-export const signUpSchema = z.object({ email: emailSchema, password: passwordSchema });
+export const signUpSchema = z.object({
+  email: emailSchema,
+  password: passwordSchema,
+  ageConfirmed: z.literal(true, { error: 'confirm that you are 18 or over' }),
+  invite: z.string().trim().min(1).max(200).optional(),
+});
+export const createInviteSchema = z.object({ email: emailSchema });
 export const signInSchema = z.object({ email: emailSchema, password: z.string().min(1).max(LIMITS.passwordMax) });
 export const deleteAccountSchema = z.object({ password: z.string().min(1).max(LIMITS.passwordMax) });
 
