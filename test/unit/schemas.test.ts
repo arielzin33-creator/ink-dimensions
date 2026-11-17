@@ -26,9 +26,9 @@ describe('shared schemas', () => {
   });
 
   it('normalises emails and requires 10-character passwords', () => {
-    expect(signUpSchema.parse({ email: ' Ann@Example.COM ', password: '0123456789' }).email).toBe('ann@example.com');
-    expect(signUpSchema.safeParse({ email: 'ann@example.com', password: 'short' }).success).toBe(false);
-    expect(signUpSchema.safeParse({ email: 'not-an-email', password: '0123456789' }).success).toBe(false);
+    expect(signUpSchema.parse({ email: ' Ann@Example.COM ', password: '0123456789', ageConfirmed: true }).email).toBe('ann@example.com');
+    expect(signUpSchema.safeParse({ email: 'ann@example.com', password: 'short', ageConfirmed: true }).success).toBe(false);
+    expect(signUpSchema.safeParse({ email: 'not-an-email', password: '0123456789', ageConfirmed: true }).success).toBe(false);
   });
 
   it('requires a path for new projects and a supported image type', () => {

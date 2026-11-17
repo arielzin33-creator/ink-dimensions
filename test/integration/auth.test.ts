@@ -17,7 +17,7 @@ describe('authentication', () => {
     expect(cookie).toMatch(/^ink_session=[A-Za-z0-9_-]{43};/);
     expect(cookie).toContain('HttpOnly');
     expect(cookie).toContain('SameSite=Strict');
-    expect((await c.get('/api/auth/me')).body.user.email).toBe('ann@example.com');
+    expect((await c.get('/api/auth/me')).body.user).toMatchObject({ email: 'ann@example.com', isAdmin: false });
     const stored = await t.db.query<{ password_hash: string }>("SELECT password_hash FROM users WHERE email = 'ann@example.com'");
     expect(stored.rows[0]?.password_hash).toMatch(/^scrypt\$/);
   });

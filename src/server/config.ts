@@ -33,7 +33,13 @@ export interface Config {
   llm: LlmConfig;
   image: ImageConfig;
   moderation: 'rules' | 'permissive';
+  registrationOpen: boolean;
+  adminBootstrapCode: string | undefined;
+  email: EmailConfig;
+  appUrl: string;
 }
+
+export type EmailConfig = { provider: 'twin' } | { provider: 'http'; url: string; apiKey: string; from: string; timeoutMs: number };
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'silent';
 type Env = Record<string, string | undefined>;
@@ -149,6 +155,22 @@ export function loadConfig(env: Env = process.env): Config {
     throw new ConfigError('STORAGE_PROVIDER=memory is not allowed in production');
   }
 
+  const registrationOpen = bool(env, 'REGISTRATION_OPEN', false);
+  if (production && registrationOpen) throw new ConfigError('REGISTRATION_OPEN=true is not allowed in production (spec 002 FR-107)');
+  const adminBootstrapCode = str(env, 'ADMIN_BOOTSTRAP_CODE');
+  if (adminBootstrapCode !== undefined && (adminBootstrapCode.length < 32 || adminBootstrapCode.length > 200)) {
+    throw new ConfigError('ADMIN_BOOTSTRAP_CODE must be 32 to 200 characters (the sign-up form accepts at most 200)');
+  }
+
+  const emailProvider = oneOf(env, 'EMAIL_PROVIDER', ['twin', 'http'] as const, 'twin');
+  let email: EmailConfig = { provider: 'twin' };
+  let appUrl = str(env, 'APP_URL') ? url(env, 'APP_URL', '') : 'http://127.0.0.1:3000';
+  if (emailProvider === 'http') {
+    const why = 'when EMAIL_PROVIDER=http';
+    email = { provider: 'http', url: url(env, 'EMAIL_HTTP_URL', why), apiKey: required(env, 'EMAIL_HTTP_API_KEY', why), from: required(env, 'EMAIL_FROM', why), timeoutMs: int(env, 'EMAIL_TIMEOUT_MS', 15_000, 1_000, 120_000) };
+    appUrl = url(env, 'APP_URL', why);
+  }
+
   return {
     nodeEnv,
     host: str(env, 'HOST') ?? (production ? '0.0.0.0' : '127.0.0.1'),
@@ -167,5 +189,9 @@ export function loadConfig(env: Env = process.env): Config {
     llm,
     image,
     moderation,
+    registrationOpen,
+    adminBootstrapCode,
+    email,
+    appUrl,
   };
 }

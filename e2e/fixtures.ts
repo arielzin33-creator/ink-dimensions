@@ -1,6 +1,17 @@
 // Shared end-to-end helpers: unique accounts and a tiny real PNG built in memory.
+import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page } from '@playwright/test';
 import { deflateSync } from 'node:zlib';
+
+export { SETUP_CODE } from '../playwright.config.js';
+
+export const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
+
+export async function scan(page: Page, name: string) {
+  const results = await new AxeBuilder({ page }).withTags(TAGS).analyze();
+  const summary = results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`);
+  expect(summary, `axe violations on ${name}`).toEqual([]);
+}
 
 function crc32(buf: Buffer): number {
   let c = ~0;
@@ -43,6 +54,7 @@ export async function signUp(page: Page, email = uniqueEmail()): Promise<string>
   await page.goto('/signup');
   await page.getByLabel('Email', { exact: true }).fill(email);
   await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
+  await page.getByLabel('I am 18 or over.').check();
   await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page.getByRole('heading', { name: 'Your comics' })).toBeVisible();
   return email;

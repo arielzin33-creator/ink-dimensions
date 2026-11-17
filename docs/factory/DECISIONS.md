@@ -203,3 +203,8 @@ must cite their run of evidence (charter §9).
   repository's own glob patterns, not user input.
 - **Remove when:** `picomatch` publishes a patched release. Then update the lockfile (or add an
   override, as with `minimatch` in #5) and delete the id from `exempt` in the workflow.
+
+## 2026-11-17 — Spec 002 built
+
+- Spec 002 built: invitations with one administrator, UTC daily limits enforced by conditional upsert, self-declared age and guardian statements, retention gated on a real email service.
+- Open after the build: email vendor, GPU and ComfyUI server, legal advice on photos of minors, and replacing the sole-tester pilot (`docs/product/OPEN-ITEMS.md`, item 3).

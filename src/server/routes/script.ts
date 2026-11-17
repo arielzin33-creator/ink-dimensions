@@ -9,6 +9,7 @@ import { requirePhotoPath } from '../flags.js';
 import { loadCharacters } from '../dto.js';
 import { badRequest, conflict, notFound, refused } from '../errors.js';
 import { json, type Router } from '../http.js';
+import { releaseUsage, reserveUsage } from '../usage.js';
 import { generateScript, normaliseScript, panelIds, scriptDto, scriptTexts, type ScriptRow } from '../script-service.js';
 
 export function registerScriptRoutes(router: Router, deps: ResolvedDeps): void {
@@ -64,20 +65,28 @@ export function registerScriptRoutes(router: Router, deps: ResolvedDeps): void {
     const characters = await loadCharacters(deps.db, project.id);
     checkCast(project, characters);
     await moderate(project, [project.title, project.plot, ...characters.flatMap((c) => [c.name, c.description])]);
-    const script = await generateScript(
-      deps.providers.llm,
-      {
-        title: project.title,
-        plot: project.plot,
-        style: getStyle(project.style_preset),
-        characters: characters.map((c) => ({ name: c.name, description: c.description })),
-        pages,
-        realPeople: project.path === 'photo',
-      },
-      ctx.log,
-    );
-    await moderate(project, scriptTexts(script));
-    const row = await save(project, script, null);
+    const day = await reserveUsage(deps.db, user.id, 'script', 1);
+    let row: ScriptRow;
+    let script: Script;
+    try {
+      script = await generateScript(
+        deps.providers.llm,
+        {
+          title: project.title,
+          plot: project.plot,
+          style: getStyle(project.style_preset),
+          characters: characters.map((c) => ({ name: c.name, description: c.description })),
+          pages,
+          realPeople: project.path === 'photo',
+        },
+        ctx.log,
+      );
+      await moderate(project, scriptTexts(script));
+      row = await save(project, script, null);
+    } catch (err) {
+      await releaseUsage(deps.db, user.id, 'script', 1, day);
+      throw err;
+    }
     ctx.log.info('script generated', { provider: deps.providers.llm.name, pages: script.pages.length, version: row.version });
     return json(201, await scriptDto(deps.db, row));
   });

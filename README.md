@@ -24,7 +24,7 @@ Requires Node.js 22 and npm.
 
 ```bash
 npm ci
-npm run dev          # API + UI on http://127.0.0.1:3000 (Vite middleware, hot reload)
+REGISTRATION_OPEN=true npm run dev   # API + UI on http://127.0.0.1:3000 (hot reload); sign-up without an invitation
 ```
 
 With no configuration the app uses in-process PostgreSQL (PGlite, data in `.data/pglite`),
@@ -35,9 +35,22 @@ panels (labelled shapes, no generated imagery).
 Production-style run:
 
 ```bash
-npm run build && npm start      # serves dist/web and the API
-npm run db:migrate              # optional: migrations also run at start-up
+npm run build && NODE_ENV=production npm start   # serves dist/web and the API
+npm run db:migrate                                 # optional: migrations also run at start-up
 ```
+
+`npm start` alone runs as development: the production checks below do not apply, and with the twin
+email, photos are deleted 14 days after an unsent warning. With `NODE_ENV=production` the app refuses to start with `REGISTRATION_OPEN=true`,
+`MODERATION_PROVIDER=permissive` or `STORAGE_PROVIDER=memory`, and cookies are `Secure`, so serve it
+over HTTPS.
+
+First administrator:
+
+1. Set `ADMIN_BOOTSTRAP_CODE` (at least 32 characters) on the first run.
+2. Sign up with a NEW address and enter the code in the "Invitation code" field. On an install that
+   already has accounts, use a new address too: existing accounts cannot become administrator.
+3. Remove the variable after setup. While it is still set, it starts working again if the
+   administrator's account is deleted.
 
 Checks:
 
@@ -78,6 +91,13 @@ Only environment variables; every one is optional and documented in [`.env.examp
 | `IMAGE_TIMEOUT_MS` | `180000` | Per-panel image timeout |
 | `MODERATION_PROVIDER` | `rules` | `rules`, or `permissive` (tests only; refused in production) |
 | `FLAGS_FILE` | `flags/flags.json` | Feature flags (OpenFeature, flagd JSON) |
+| `REGISTRATION_OPEN` | `false` | `true` lets anyone sign up without an invitation. For development and tests only; refused in production |
+| `ADMIN_BOOTSTRAP_CODE` | unset | 32 to 200 characters. The first sign-up that enters it as its invitation code becomes the administrator. It stops working once an administrator exists |
+| `EMAIL_PROVIDER` | `twin` | `twin` (no email is sent) or `http`. In production there are no warnings or photo deletions until `EMAIL_PROVIDER=http`; invitations are still tidied |
+| `EMAIL_HTTP_URL`, `EMAIL_HTTP_API_KEY` | – | Generic JSON email API (required with `EMAIL_PROVIDER=http`; see `src/providers/email/http.ts`) |
+| `EMAIL_FROM` | – | Sender address (required with `EMAIL_PROVIDER=http`) |
+| `EMAIL_TIMEOUT_MS` | `15000` | Per-email timeout |
+| `APP_URL` | `http://127.0.0.1:3000` | Public base URL linked from emails. Required with `EMAIL_PROVIDER=http` |
 | `DEV_VITE` | unset | Set by `npm run dev` |
 
 A selected provider with a missing setting stops start-up and names the missing variable.
@@ -117,6 +137,8 @@ flag means "on". flagd `targeting` rules are not evaluated in v1.
 |---|---|---|
 | `photo-path-enabled` | `on` | New real-photo projects, photo uploads, and script generation and rendering for real-photo projects return 403 `feature_disabled`. Reading, exporting and deleting existing data keep working. The UI disables the choice. |
 | `render-enabled` | `on` | New render jobs return 503 `feature_disabled` (for example to cap hosted provider costs). |
+| `minor-photos-enabled` | `on` | Photo uploads with `subject: 'minor'` return 403 `feature_disabled`. Adult photos are unaffected. |
+| `retention-enabled` | `on` | The whole retention check pauses: no warnings, no photo deletion, no invitation tidying. The server logs that it is paused. |
 
 Switch with `"defaultVariant": "off"` (or `"state": "DISABLED"`, which falls back to the default: on).
 
@@ -148,13 +170,15 @@ e2e            Playwright specs with axe accessibility scans
 
 - Photos and reference art are stored only through the `StorageProvider` (local disk, files mode
   0600, keys scoped per user and project) and served only to their owner with `no-store`.
-- Each photo upload requires `consent: true`; the time of the confirmation is stored. The app
-  cannot verify that consent was really given.
+- Each photo upload requires `consent: true` and `subject: 'adult' | 'minor'`; a minor also needs
+  `guardianConfirmed: true`. The time of each confirmation is stored. These statements are
+  self-declared: the app cannot verify that consent or guardianship is real (see Spec 002 below).
 - Deleting a photo deletes it and every rendered panel that shows that character. Deleting a
   character, a project or the account deletes all of its files and rows.
 - Photos are used only for their own project and are never sent to the hosted image provider
   (owner decision, FR-022; `HOSTED_IMAGE_ALLOW_PHOTOS` stays `false`). A ComfyUI server keeps
-  any uploaded reference image in its own input folder; cleaning that folder is the operator's job.
+  any uploaded reference image in its own input folder; cleaning that folder is the operator's job
+  (see [`docs/product/SELF-HOSTED-IMAGE.md`](docs/product/SELF-HOSTED-IMAGE.md)).
 - On the real-photo path the moderation provider refuses sexual, violent-harm and defamatory
   content in plots, character notes, generated scripts, edits and panels before rendering. The
   default `rules` provider is a keyword floor, not a classifier: it can be evaded and will refuse
@@ -167,7 +191,23 @@ e2e            Playwright specs with axe accessibility scans
 - Payments and plans; public sharing, collaboration.
 - Training or fine-tuning on user images; face recognition or identity/consent verification.
 - Interface languages other than English; generated imagery for interface assets (never).
-- Owner decisions made on 2026-11-05 but **not built yet** (`docs/product/OPEN-ITEMS.md`): invites
-  and daily quotas (FR-032), the 18+ and parent-or-guardian confirmations (FR-033) and automatic
-  photo deletion after 90 idle days (FR-034). Until they are built, the running app has only the
-  36-panel job cap, no age gate and no automatic deletion.
+
+## Spec 002: invitations, limits, statements and retention
+
+Built per `specs/002-invites-limits-retention/` (owner decisions in `docs/product/OPEN-ITEMS.md`).
+
+- **Invitations.** Sign-up needs an invitation unless `REGISTRATION_OPEN=true`. An administrator
+  creates one at `/admin/invites` (the link appears for administrators only) and copies the sign-up
+  link, which is shown once. Invitations expire after 14 days.
+- **Limits.** 10 script generations and 100 rendered panels per person per UTC day. The count
+  resets at 00:00 UTC. A request larger than what is left is refused whole (429 `daily_limit`).
+- **Photos.** Each upload needs a statement about who is in the photo (`subject`). For a minor, a
+  parent or legal guardian also confirms it (`guardianConfirmed`). These statements are
+  self-declared, not verified.
+- **Retention.** The check runs at start-up and then hourly. A project with photos that has been
+  idle for 76 days gets an email (when a real email service is configured) and a notice in the app.
+  At 90 idle days, its photos and every image made from them are deleted, at least 14 days after
+  that warning. Scripts and invented characters are kept. Opening a project counts as activity and
+  cancels a pending warning; the project list does not. **In production there are no warnings or photo deletions
+  until `EMAIL_PROVIDER=http` is configured, and the run logs that they are off; invitations are still tidied.**
+  Invitations are removed 30 days after they stop being usable (used, revoked or expired).

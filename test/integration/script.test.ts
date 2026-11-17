@@ -107,7 +107,7 @@ describe('moderation on the photo path', () => {
   async function photoProject() {
     const id = (await c.post('/api/projects', { title: 'Family', path: 'photo' })).body.project.id as string;
     await c.patch(`/api/projects/${id}`, { plot: 'Grandma bakes a cake for the whole street.' });
-    await c.post(`/api/projects/${id}/characters`, { name: 'Gran', image: pngUpload(), consent: true });
+    await c.post(`/api/projects/${id}/characters`, { name: 'Gran', image: pngUpload(), consent: true, subject: 'adult' });
     return id;
   }
 

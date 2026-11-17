@@ -5,6 +5,27 @@ import { defineConfig, devices } from '@playwright/test';
 // (PLAYWRIGHT_BROWSERS_PATH); @playwright/test is pinned to the installed Playwright version.
 const PORT = Number(process.env.E2E_PORT ?? 3917);
 
+const server = (port: number, env: Record<string, string>) => ({
+  command: 'node dist/node/server/main.js',
+  url: `http://127.0.0.1:${port}/readyz`,
+  reuseExistingServer: false,
+  timeout: 60_000,
+  env: {
+    NODE_ENV: 'test',
+    HOST: '127.0.0.1',
+    PORT: String(port),
+    PGLITE_DIR: 'memory://',
+    STORAGE_PROVIDER: 'memory',
+    LLM_PROVIDER: 'twin',
+    IMAGE_PROVIDER: 'twin',
+    MODERATION_PROVIDER: 'rules',
+    LOG_LEVEL: 'warn',
+    RELEASE: 'e2e',
+    ...env,
+  },
+});
+export const SETUP_CODE = 'e2e-setup-code-0123456789-0123456789';
+
 export default defineConfig({
   testDir: 'e2e',
   fullyParallel: false,
@@ -14,27 +35,12 @@ export default defineConfig({
   reporter: [['list']],
   forbidOnly: !!process.env.CI,
   use: {
-    baseURL: `http://127.0.0.1:${PORT}`,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-  webServer: {
-    command: 'node dist/node/server/main.js',
-    url: `http://127.0.0.1:${PORT}/readyz`,
-    reuseExistingServer: false,
-    timeout: 60_000,
-    env: {
-      NODE_ENV: 'test',
-      HOST: '127.0.0.1',
-      PORT: String(PORT),
-      PGLITE_DIR: 'memory://',
-      STORAGE_PROVIDER: 'memory',
-      LLM_PROVIDER: 'twin',
-      IMAGE_PROVIDER: 'twin',
-      MODERATION_PROVIDER: 'rules',
-      LOG_LEVEL: 'warn',
-      RELEASE: 'e2e',
-    },
-  },
+  projects: [
+    { name: 'chromium', testIgnore: /invites\.spec\.ts/, use: { ...devices['Desktop Chrome'], baseURL: `http://127.0.0.1:${PORT}` } },
+    { name: 'invites', testMatch: /invites\.spec\.ts/, use: { ...devices['Desktop Chrome'], baseURL: `http://127.0.0.1:${PORT + 1}` } },
+  ],
+  webServer: [server(PORT, { REGISTRATION_OPEN: 'true' }), server(PORT + 1, { ADMIN_BOOTSTRAP_CODE: SETUP_CODE })],
 });

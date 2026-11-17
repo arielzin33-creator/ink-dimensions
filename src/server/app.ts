@@ -1,5 +1,6 @@
 // Application wiring: dependencies in, request handler out. Tests build it with twins.
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { registerInviteRoutes } from '../auth/invites.js';
 import { registerAuthRoutes } from '../auth/routes.js';
 import type { Providers } from '../providers/index.js';
 import type { Config } from './config.js';
@@ -12,6 +13,7 @@ import { registerCharacterRoutes } from './routes/characters.js';
 import { registerPageRoutes } from './routes/pages.js';
 import { registerProjectRoutes } from './routes/projects.js';
 import { registerRenderRoutes } from './routes/render.js';
+import { startRetention } from './retention.js';
 import { createRenderRunner, type RenderRunner } from './render-runner.js';
 import { registerScriptRoutes } from './routes/script.js';
 
@@ -46,6 +48,8 @@ export function createApp(deps: AppDeps, opts: { fallback?: Fallback; autoRun?: 
   const full: ResolvedDeps = { ...deps, metrics, flags };
   deps = full;
   const runner = createRenderRunner(deps, { autoRun: opts.autoRun ?? true });
+  // Tests pass autoRun: false and call runRetention with a fixed clock instead.
+  const retention = (opts.autoRun ?? true) ? startRetention(full) : null;
 
   router.get('/healthz', async () => json(200, { status: 'ok', release: deps.config.release }));
   router.get('/readyz', async (ctx) => {
@@ -82,7 +86,8 @@ export function createApp(deps: AppDeps, opts: { fallback?: Fallback; autoRun?: 
 
   router.get('/api/features', async () => json(200, { photoPathEnabled: await flags.photoPathEnabled(), renderEnabled: await flags.renderEnabled() }));
 
-  registerAuthRoutes(router, { db: deps.db, storage: deps.providers.storage, cookieSecure: deps.config.cookieSecure });
+  registerAuthRoutes(router, { db: deps.db, storage: deps.providers.storage, cookieSecure: deps.config.cookieSecure, registrationOpen: deps.config.registrationOpen, adminBootstrapCode: deps.config.adminBootstrapCode });
+  registerInviteRoutes(router, { db: deps.db, cookieSecure: deps.config.cookieSecure });
   registerProjectRoutes(router, full);
   registerCharacterRoutes(router, full);
   registerScriptRoutes(router, full);
@@ -90,5 +95,9 @@ export function createApp(deps: AppDeps, opts: { fallback?: Fallback; autoRun?: 
   registerPageRoutes(router, deps);
 
   const handler = createRequestHandler({ router, log: deps.log, release: deps.config.release, onResponse: (status) => metrics.recordResponse(status), ...(opts.fallback ? { fallback: opts.fallback } : {}) });
-  return { router, runner, metrics, handler, stop: () => runner.stop() };
+  const stop = async () => {
+    await retention?.stop();
+    await runner.stop();
+  };
+  return { router, runner, metrics, handler, stop };
 }

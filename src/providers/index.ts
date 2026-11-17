@@ -4,6 +4,9 @@ import { createComfyUiImage } from './image/comfyui.js';
 import { createHostedImage } from './image/hosted.js';
 import { createTwinImage } from './image/twin.js';
 import type { ImageProvider } from './image/types.js';
+import { createHttpEmail } from './email/http.js';
+import { createTwinEmail } from './email/twin.js';
+import type { EmailProvider } from './email/types.js';
 import { createAnthropicLlm } from './llm/anthropic.js';
 import { createOpenAiCompatibleLlm } from './llm/openai-compatible.js';
 import { createTwinLlm } from './llm/twin.js';
@@ -20,6 +23,7 @@ export interface Providers {
   image: ImageProvider;
   storage: StorageProvider;
   moderation: ModerationProvider;
+  email: EmailProvider;
 }
 
 export function createProviders(config: Config): Providers {
@@ -33,5 +37,6 @@ export function createProviders(config: Config): Providers {
     config.image.provider === 'hosted' ? createHostedImage(config.image) : config.image.provider === 'comfyui' ? createComfyUiImage(config.image) : createTwinImage();
   const storage = config.storage.provider === 'memory' ? createMemoryStorage() : createLocalStorage(config.storage.dir);
   const moderation = config.moderation === 'permissive' ? createPermissiveModeration() : createRulesModeration();
-  return { llm, image, storage, moderation };
+  const email = config.email.provider === 'http' ? createHttpEmail(config.email) : createTwinEmail();
+  return { llm, image, storage, moderation, email };
 }

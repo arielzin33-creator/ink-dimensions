@@ -17,6 +17,8 @@ import { decodeImage, uploadBodyLimit } from '../uploads.js';
 const createSchema = characterSchema.extend({
   image: z.object({ contentType: z.enum(IMAGE_TYPES), dataBase64: imageUploadSchema.shape.dataBase64 }).optional(),
   consent: z.boolean().optional(),
+  subject: imageUploadSchema.shape.subject,
+  guardianConfirmed: imageUploadSchema.shape.guardianConfirmed,
 });
 
 const consentRequired = () =>
@@ -32,13 +34,29 @@ export function registerCharacterRoutes(router: Router, deps: ResolvedDeps): voi
     if (!verdict.allowed) throw refused(verdict.categories);
   }
 
-  async function storeImage(userId: string, project: ProjectRow, characterId: string, kind: 'photo' | 'reference', contentType: (typeof IMAGE_TYPES)[number], dataBase64: string, consent: boolean | undefined) {
+  interface PhotoStatement {
+    consent?: boolean | undefined;
+    subject?: 'adult' | 'minor' | undefined;
+    guardianConfirmed?: boolean | undefined;
+  }
+
+  /** Per-photo statements (FR-008; spec 002 FR-110, FR-111). Returns the guardian confirmation time, if any. */
+  async function checkPhotoStatement(s: PhotoStatement): Promise<Date | null> {
+    if (s.consent !== true) throw consentRequired();
+    if (s.subject === undefined) throw new HttpError(400, 'subject_required', 'Say whether this photo shows someone under 18.');
+    if (s.subject === 'adult') return null;
+    if (!(await deps.flags.minorPhotosEnabled())) throw new HttpError(403, 'feature_disabled', 'Photos of people under 18 are switched off at the moment.');
+    if (s.guardianConfirmed !== true) throw new HttpError(400, 'guardian_required', "Confirm that you are this child's parent or legal guardian before uploading their photo.");
+    return new Date();
+  }
+
+  async function storeImage(userId: string, project: ProjectRow, characterId: string, kind: 'photo' | 'reference', contentType: (typeof IMAGE_TYPES)[number], dataBase64: string, statement: PhotoStatement) {
     const expected = project.path === 'photo' ? 'photo' : 'reference';
     if (kind !== expected) {
       throw badRequest(project.path === 'photo' ? 'Projects on the real-photo path take photos, not reference art.' : 'Projects with invented characters take reference art, not photos of real people.');
     }
     if (kind === 'photo') await requirePhotoPath(deps.flags);
-    if (kind === 'photo' && consent !== true) throw consentRequired();
+    const guardianAt = kind === 'photo' ? await checkPhotoStatement(statement) : null;
     const { rows: countRows } = await deps.db.query<{ n: number }>('SELECT count(*)::int AS n FROM character_images WHERE character_id = $1', [characterId]);
     if ((countRows[0]?.n ?? 0) >= LIMITS.imagesPerCharacter) throw conflict(`A character can have at most ${LIMITS.imagesPerCharacter} images.`);
     const data = decodeImage(contentType, dataBase64, maxBytes);
@@ -47,9 +65,9 @@ export function registerCharacterRoutes(router: Router, deps: ResolvedDeps): voi
     await deps.providers.storage.put(key, data, contentType);
     try {
       const { rows } = await deps.db.query<CharacterImageRow>(
-        `INSERT INTO character_images (id, character_id, project_id, kind, storage_key, content_type, byte_size, consent_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-        [id, characterId, project.id, kind, key, contentType, data.length, kind === 'photo' ? new Date() : null],
+        `INSERT INTO character_images (id, character_id, project_id, kind, storage_key, content_type, byte_size, consent_at, subject_minor, guardian_confirmed_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+        [id, characterId, project.id, kind, key, contentType, data.length, kind === 'photo' ? new Date() : null, kind === 'photo' ? statement.subject === 'minor' : null, guardianAt],
       );
       return rows[0] as CharacterImageRow;
     } catch (err) {
@@ -66,7 +84,7 @@ export function registerCharacterRoutes(router: Router, deps: ResolvedDeps): voi
       throw badRequest('Describe the character, add reference art, or both.');
     }
     if (project.path === 'photo' && body.image) await requirePhotoPath(deps.flags);
-    if (project.path === 'photo' && body.image && body.consent !== true) throw consentRequired();
+    if (project.path === 'photo' && body.image) await checkPhotoStatement(body);
     await moderateCharacter(project, [body.name, body.description]);
     const { rows: n } = await deps.db.query<{ n: number }>('SELECT count(*)::int AS n FROM characters WHERE project_id = $1', [project.id]);
     if ((n[0]?.n ?? 0) >= LIMITS.charactersPerProject) throw conflict(`A project can have at most ${LIMITS.charactersPerProject} characters.`);
@@ -80,7 +98,7 @@ export function registerCharacterRoutes(router: Router, deps: ResolvedDeps): voi
     const images: CharacterImageRow[] = [];
     if (body.image) {
       try {
-        images.push(await storeImage(user.id, project, id, project.path === 'photo' ? 'photo' : 'reference', body.image.contentType, body.image.dataBase64, body.consent));
+        images.push(await storeImage(user.id, project, id, project.path === 'photo' ? 'photo' : 'reference', body.image.contentType, body.image.dataBase64, body));
       } catch (err) {
         await deps.db.query('DELETE FROM characters WHERE id = $1', [id]);
         throw err;
@@ -122,7 +140,7 @@ export function registerCharacterRoutes(router: Router, deps: ResolvedDeps): voi
     const project = await loadOwnedProject(deps.db, user.id, ctx.params.id);
     const character = await loadCharacter(deps.db, project.id, ctx.params.cid);
     const body = await ctx.body(imageUploadSchema, uploadBodyLimit(maxBytes));
-    const image = await storeImage(user.id, project, character.id, body.kind, body.contentType, body.dataBase64, body.consent);
+    const image = await storeImage(user.id, project, character.id, body.kind, body.contentType, body.dataBase64, body);
     await touchProject(deps.db, project.id);
     return json(201, { image: imageDto(image) });
   });

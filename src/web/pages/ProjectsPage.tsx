@@ -6,6 +6,7 @@ import { api, errorMessage } from '../api.js';
 import { Notice } from '../components/Field.js';
 import { Link } from '../router.js';
 
+export const formatDay = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString(undefined, { dateStyle: 'long', timeZone: 'UTC' });
 export const PATH_LABEL = { photo: 'Real photos', invented: 'Invented characters' } as const;
 
 export function ProjectsPage() {
@@ -42,6 +43,7 @@ export function ProjectsPage() {
                 <span className="badge">{PATH_LABEL[p.path]}</span> · {STYLE_PRESETS.find((s) => s.id === p.stylePreset)?.label ?? p.stylePreset} · updated{' '}
                 {new Date(p.updatedAt).toLocaleDateString()}
               </p>
+              {p.photosDeleteOn ? <p className="notice">Photos in this project will be deleted on {formatDay(p.photosDeleteOn)}. Open the project to keep them.</p> : null}
             </li>
           ))}
         </ul>

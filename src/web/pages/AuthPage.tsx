@@ -12,6 +12,8 @@ export function AuthPage({ mode }: { mode: 'signin' | 'signup' }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [invite, setInvite] = useState(() => new URLSearchParams(window.location.hash.slice(1)).get('invite') ?? '');
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const signup = mode === 'signup';
 
@@ -23,8 +25,12 @@ export function AuthPage({ mode }: { mode: 'signin' | 'signup' }) {
     e.preventDefault();
     setBusy(true);
     setError(null);
+    if (signup && !ageConfirmed) {
+      setBusy(false);
+      return setError('Confirm that you are 18 or over to create an account.');
+    }
     try {
-      const r = await api<{ user: UserDto }>('POST', signup ? '/api/auth/signup' : '/api/auth/login', { email, password });
+      const r = await api<{ user: UserDto }>('POST', signup ? '/api/auth/signup' : '/api/auth/login', signup ? { email, password, ageConfirmed, ...(invite.trim() ? { invite: invite.trim() } : {}) } : { email, password });
       setUser(r.user);
       navigate('/projects');
     } catch (err) {
@@ -51,6 +57,24 @@ export function AuthPage({ mode }: { mode: 'signin' | 'signup' }) {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
+        {signup ? (
+          <>
+            <TextField
+              label="Invitation code"
+              name="invite"
+              autoComplete="off"
+              hint="Filled in from your invitation link. Setting up a new installation? Enter its setup code."
+              value={invite}
+              onChange={(e) => setInvite(e.target.value)}
+            />
+            <div className="field">
+              <label className="check">
+                <input type="checkbox" name="ageConfirmed" checked={ageConfirmed} onChange={(e) => setAgeConfirmed(e.target.checked)} />
+                <span>I am 18 or over.</span>
+              </label>
+            </div>
+          </>
+        ) : null}
         <Notice error={error} />
         <div className="actions">
           <button type="submit" className="button" disabled={busy}>

@@ -12,6 +12,7 @@ import type { JobStatus, PanelResultDto, RenderJobDto } from '../shared/types.js
 import type { CharacterImageRow, CharacterRow, ProjectRow } from './access.js';
 import type { AppDeps } from './app.js';
 import { errorFields } from './logger.js';
+import { releaseJobPanels } from './usage.js';
 
 export const PANEL_WIDTH = 800;
 export const PANEL_HEIGHT = 600;
@@ -113,6 +114,7 @@ export function createRenderRunner(deps: AppDeps, opts: { autoRun: boolean; poll
         error,
         JSON.stringify(results),
       ]);
+      await releaseJobPanels(deps.db, job.id, results.filter((r) => r.status !== 'done').length);
       if (status === 'failed') deps.metrics?.recordJobFailed();
       jlog.info('render job', { status, total: results.length, failed: results.filter((r) => r.status === 'failed').length, durationMs: Date.now() - started });
     };
@@ -190,7 +192,14 @@ export function createRenderRunner(deps: AppDeps, opts: { autoRun: boolean; poll
       } catch (err) {
         log.error('render job crashed', { jobId: job.id, ...errorFields(err) });
         deps.metrics?.recordJobFailed();
-        await deps.db.query("UPDATE render_jobs SET status = 'failed', error = 'Internal error.', finished_at = now() WHERE id = $1", [job.id]).catch(() => undefined);
+        const { rows } = await deps.db
+          .query<{ results: PanelResultDto[]; panel_ids: string[] }>(
+            "UPDATE render_jobs SET status = 'failed', error = 'Internal error.', finished_at = now() WHERE id = $1 AND finished_at IS NULL RETURNING results, panel_ids",
+            [job.id],
+          )
+          .catch(() => ({ rows: [] as Array<{ results: PanelResultDto[]; panel_ids: string[] }> }));
+        // finished_at IS NULL: a crash after finish() must not give the panels back twice.
+        if (rows[0]) await releaseJobPanels(deps.db, job.id, rows[0].panel_ids.length - rows[0].results.filter((r) => r.status === 'done').length).catch(() => undefined);
       }
     }
   }

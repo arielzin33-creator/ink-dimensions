@@ -44,6 +44,24 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ NODE_ENV: 'production', STORAGE_PROVIDER: 'memory' })).toThrow(ConfigError);
     expect(loadConfig({ NODE_ENV: 'production' }).cookieSecure).toBe(true);
   });
+
+  it('keeps registration closed by default and refuses open registration in production (FR-107)', () => {
+    expect(loadConfig({}).registrationOpen).toBe(false);
+    expect(loadConfig({ REGISTRATION_OPEN: 'true' }).registrationOpen).toBe(true);
+    expect(() => loadConfig({ NODE_ENV: 'production', REGISTRATION_OPEN: 'true' })).toThrow(/REGISTRATION_OPEN/);
+    expect(() => loadConfig({ ADMIN_BOOTSTRAP_CODE: 'short' })).toThrow(/ADMIN_BOOTSTRAP_CODE/);
+    expect(loadConfig({ ADMIN_BOOTSTRAP_CODE: 'x'.repeat(32) }).adminBootstrapCode).toBe('x'.repeat(32));
+    expect(loadConfig({ ADMIN_BOOTSTRAP_CODE: 'x'.repeat(200) }).adminBootstrapCode).toBe('x'.repeat(200));
+    expect(() => loadConfig({ ADMIN_BOOTSTRAP_CODE: 'x'.repeat(201) })).toThrow(/200 characters/);
+  });
+
+  it('defaults email to the twin and names missing email settings', () => {
+    expect(loadConfig({}).email).toEqual({ provider: 'twin' });
+    expect(() => loadConfig({ EMAIL_PROVIDER: 'http' })).toThrow(/EMAIL_HTTP_URL is required/);
+    expect(() => loadConfig({ EMAIL_PROVIDER: 'http', EMAIL_HTTP_URL: 'https://mail.example' })).toThrow(/EMAIL_HTTP_API_KEY/);
+    expect(() => loadConfig({ EMAIL_PROVIDER: 'http', EMAIL_HTTP_URL: 'https://mail.example', EMAIL_HTTP_API_KEY: 'k' })).toThrow(/EMAIL_FROM/);
+    expect(() => loadConfig({ EMAIL_PROVIDER: 'http', EMAIL_HTTP_URL: 'https://mail.example', EMAIL_HTTP_API_KEY: 'k', EMAIL_FROM: 'a@b.c' })).toThrow(/APP_URL/);
+  });
 });
 
 describe('logger', () => {

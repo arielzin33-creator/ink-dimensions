@@ -11,6 +11,8 @@ export const LIMITS = {
   characterDescriptionMax: 1000,
   imagesPerCharacter: 5,
   charactersPerProject: 12,
+  dailyScriptGenerations: 10,
+  dailyPanels: 100,
   pagesMax: 6,
   panelsPerPageMax: 6,
   dialoguePerPanelMax: 4,
@@ -34,7 +36,13 @@ export const emailSchema = z
   .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'must be an email address');
 export const passwordSchema = z.string().min(LIMITS.passwordMin, `must be at least ${LIMITS.passwordMin} characters`).max(LIMITS.passwordMax);
 
-export const signUpSchema = z.object({ email: emailSchema, password: passwordSchema });
+export const signUpSchema = z.object({
+  email: emailSchema,
+  password: passwordSchema,
+  ageConfirmed: z.literal(true, { error: 'confirm that you are 18 or over' }),
+  invite: z.string().trim().min(1).max(200).optional(),
+});
+export const createInviteSchema = z.object({ email: emailSchema });
 export const signInSchema = z.object({ email: emailSchema, password: z.string().min(1).max(LIMITS.passwordMax) });
 export const deleteAccountSchema = z.object({ password: z.string().min(1).max(LIMITS.passwordMax) });
 
@@ -70,6 +78,8 @@ export const imageUploadSchema = z.object({
   contentType: z.enum(IMAGE_TYPES),
   dataBase64: z.string().min(1).regex(/^[A-Za-z0-9+/]+={0,2}$/, 'must be base64'),
   consent: z.boolean().optional(),
+  subject: z.enum(['adult', 'minor']).optional(),
+  guardianConfirmed: z.boolean().optional(),
 });
 
 export const dialogueLineSchema = z.object({

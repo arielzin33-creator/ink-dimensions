@@ -40,12 +40,12 @@ export interface Client {
 
 let counter = 0;
 
-export async function startTestApp(opts: { env?: Record<string, string>; providers?: Partial<Providers>; flags?: FeatureFlags; db?: Db } = {}): Promise<TestApp> {
-  const config = loadConfig({ NODE_ENV: 'test', STORAGE_PROVIDER: 'memory', LOG_LEVEL: 'silent', RELEASE: 'test-release', ...opts.env });
+export async function startTestApp(opts: { env?: Record<string, string>; providers?: Partial<Providers>; flags?: FeatureFlags; db?: Db; logLines?: string[] } = {}): Promise<TestApp> {
+  const config = loadConfig({ NODE_ENV: 'test', STORAGE_PROVIDER: 'memory', LOG_LEVEL: 'silent', RELEASE: 'test-release', REGISTRATION_OPEN: 'true', ...opts.env });
   const db = opts.db ?? (await openPglite('memory://'));
   await migrate(db, join(import.meta.dirname, '../../migrations'));
   const providers = { ...createProviders(config), ...opts.providers };
-  const log = createLogger({ level: config.logLevel, release: config.release });
+  const log = createLogger({ level: opts.logLines ? 'debug' : config.logLevel, release: config.release, ...(opts.logLines ? { write: (l: string) => void opts.logLines!.push(l) } : {}) });
   const app = createApp({ config, db, log, providers, ...(opts.flags ? { flags: opts.flags } : {}) }, { autoRun: false });
   const server = createServer(app.handler);
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
@@ -74,7 +74,7 @@ export async function startTestApp(opts: { env?: Record<string, string>; provide
       put: (p, b) => c.req('PUT', p, b ?? {}),
       patch: (p, b) => c.req('PATCH', p, b ?? {}),
       del: (p, b) => c.req('DELETE', p, b),
-      signUp: (email, password = 'correct horse battery') => c.post('/api/auth/signup', { email: email ?? `user${++counter}-${Date.now()}@example.com`, password }),
+      signUp: (email, password = 'correct horse battery') => c.post('/api/auth/signup', { email: email ?? `user${++counter}-${Date.now()}@example.com`, password, ageConfirmed: true }),
     };
     return c;
   };

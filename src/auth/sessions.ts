@@ -32,12 +32,13 @@ export async function createSession(db: Queryable, userId: string, now = new Dat
 export interface SessionUser {
   id: string;
   email: string;
+  isAdmin: boolean;
 }
 
 export async function findSessionUser(db: Queryable, token: string | undefined, now = new Date()): Promise<SessionUser | null> {
   if (!token || !isWellFormedToken(token)) return null;
   const { rows } = await db.query<SessionUser>(
-    `SELECT u.id, u.email FROM sessions s JOIN users u ON u.id = s.user_id
+    `SELECT u.id, u.email, u.is_admin AS "isAdmin" FROM sessions s JOIN users u ON u.id = s.user_id
      WHERE s.token_hash = $1 AND s.expires_at > $2`,
     [hashSessionToken(token), now],
   );

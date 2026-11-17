@@ -5,6 +5,15 @@ import type { StyleId } from './styles.js';
 export interface UserDto {
   id: string;
   email: string;
+  isAdmin: boolean;
+}
+
+export interface InviteDto {
+  id: string;
+  email: string;
+  status: 'live' | 'used' | 'expired' | 'revoked';
+  createdAt: string;
+  expiresAt: string;
 }
 
 export interface CharacterImageDto {
@@ -29,9 +38,11 @@ export interface ProjectSummaryDto {
   path: ProjectPath;
   stylePreset: StyleId;
   updatedAt: string;
+  photosDeleteOn: string | null;
 }
 
 export interface ProjectDto extends ProjectSummaryDto {
+  photosWereDueOn: string | null;
   plot: string;
   characters: CharacterDto[];
   createdAt: string;

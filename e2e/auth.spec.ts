@@ -37,6 +37,10 @@ test('the sign-up form can be completed with the keyboard only', async ({ page }
   await page.keyboard.type(`kb-${Date.now()}@example.com`);
   await page.keyboard.press('Tab');
   await page.keyboard.type(PASSWORD);
+  await page.keyboard.press('Tab'); // invitation code (open registration: left empty)
+  await page.keyboard.press('Tab');
+  await expect(page.getByLabel('I am 18 or over.')).toBeFocused();
+  await page.keyboard.press('Space');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Your comics' })).toBeVisible();
 });
